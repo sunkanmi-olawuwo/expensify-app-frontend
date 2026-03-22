@@ -51,7 +51,8 @@ const responsiveCases: ResponsiveCase[] = [
       await expect(
         page.getByRole("heading", { name: "Create your expensify account" }),
       ).toBeVisible();
-      await expect(page.getByLabel("Name")).toBeVisible();
+      await expect(page.getByLabel("First Name")).toBeVisible();
+      await expect(page.getByLabel("Last Name")).toBeVisible();
       await expect(page.getByLabel("Email")).toBeVisible();
       await expect(page.getByLabel("Confirm Password")).toBeVisible();
       await expect(

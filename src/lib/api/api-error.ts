@@ -1,4 +1,4 @@
-import type { ApiErrorItem, ApiProblemDetails } from "./types";
+import type { ApiProblemDetails, ApiValidationErrors } from "./types";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong.";
 
@@ -9,7 +9,7 @@ type ApiErrorInit = {
   detail?: string | null;
   type?: string | null;
   instance?: string | null;
-  validationErrors?: ApiErrorItem[];
+  validationErrors?: ApiValidationErrors;
   raw?: unknown;
   message?: string;
 };
@@ -22,7 +22,7 @@ function hasProblemDetailsSignals(value: Record<string, unknown>): boolean {
   const hasStatus = typeof value.status === "number";
   const hasDetail = typeof value.detail === "string";
   const hasType = typeof value.type === "string";
-  const hasErrors = Array.isArray(value.errors);
+  const hasErrors = isValidationErrors(value.errors);
 
   return hasStatus || hasDetail || hasType || hasErrors;
 }
@@ -31,34 +31,25 @@ function asOptionalString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function normalizeApiErrorItem(input: unknown): ApiErrorItem | null {
+function isValidationErrors(input: unknown): input is ApiValidationErrors {
   if (!isRecord(input)) {
-    return null;
+    return false;
   }
 
-  const code = asOptionalString(input.code);
-  const description = asOptionalString(input.description);
-  const type = asOptionalString(input.type) ?? undefined;
-
-  if (!code || !description) {
-    return null;
-  }
-
-  return {
-    code,
-    description,
-    type,
-  };
+  return Object.values(input).every(
+    (value) =>
+      Array.isArray(value) && value.every((message) => typeof message === "string"),
+  );
 }
 
-function normalizeValidationErrors(input: unknown): ApiErrorItem[] {
-  if (!Array.isArray(input)) {
-    return [];
+function normalizeValidationErrors(input: unknown): ApiValidationErrors {
+  if (!isValidationErrors(input)) {
+    return {};
   }
 
-  return input
-    .map((item) => normalizeApiErrorItem(item))
-    .filter((item): item is ApiErrorItem => item !== null);
+  return Object.fromEntries(
+    Object.entries(input).map(([field, messages]) => [field, [...messages]]),
+  );
 }
 
 export function isApiProblemDetails(
@@ -111,7 +102,7 @@ export class ApiError extends Error {
   readonly detail: string | null;
   readonly type: string | null;
   readonly instance: string | null;
-  readonly validationErrors: ApiErrorItem[];
+  readonly validationErrors: ApiValidationErrors;
   readonly raw?: unknown;
 
   constructor({
@@ -121,7 +112,7 @@ export class ApiError extends Error {
     detail = null,
     type = null,
     instance = null,
-    validationErrors = [],
+    validationErrors = {},
     raw,
     message,
   }: ApiErrorInit) {

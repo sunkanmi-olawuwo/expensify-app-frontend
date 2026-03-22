@@ -1,8 +1,4 @@
-export interface ApiErrorItem {
-  code: string;
-  description: string;
-  type?: string;
-}
+export type ApiValidationErrors = Record<string, string[]>;
 
 export interface ApiProblemDetails {
   type?: string;
@@ -10,7 +6,7 @@ export interface ApiProblemDetails {
   status?: number;
   detail?: string;
   instance?: string;
-  errors?: ApiErrorItem[];
+  errors?: ApiValidationErrors;
 }
 
 export interface PaginatedResponse<T> {
@@ -35,4 +31,6 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
   timeout?: number;
   headers?: HeadersInit;
+  auth?: "auto" | "none";
+  retryOnUnauthorized?: boolean;
 }

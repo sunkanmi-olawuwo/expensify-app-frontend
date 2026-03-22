@@ -25,28 +25,22 @@ describe("api-error", () => {
     expect(error.isConflict()).toBe(true);
   });
 
-  it("keeps backend validation metadata as an error item array", () => {
+  it("keeps ASP.NET validation metadata as a field map", () => {
     const error = normalizeApiError({
       detail: "Validation failed.",
-      errors: [
-        {
-          code: "Transactions.Amount.Invalid",
-          description: "Amount must be greater than zero.",
-          type: "Validation",
-        },
-      ],
+      errors: {
+        amount: ["Amount must be greater than zero."],
+        category: ["Category is required."],
+      },
       status: 400,
       title: "General.Validation",
     });
 
     expect(error.isValidationError()).toBe(true);
-    expect(error.validationErrors).toEqual([
-      {
-        code: "Transactions.Amount.Invalid",
-        description: "Amount must be greater than zero.",
-        type: "Validation",
-      },
-    ]);
+    expect(error.validationErrors).toEqual({
+      amount: ["Amount must be greater than zero."],
+      category: ["Category is required."],
+    });
   });
 
   it("supports not found, rate limit, and unauthorized helpers", () => {
@@ -65,7 +59,7 @@ describe("api-error", () => {
     expect(error.status).toBe(500);
     expect(error.message).toBe("Gateway blew up.");
     expect(error.code).toBeNull();
-    expect(error.validationErrors).toEqual([]);
+    expect(error.validationErrors).toEqual({});
   });
 
   it("falls back to status text and a default message for malformed payloads", () => {
@@ -80,7 +74,7 @@ describe("api-error", () => {
   });
 
   it("detects problem details shaped payloads", () => {
-    expect(isApiProblemDetails({ errors: [] })).toBe(true);
+    expect(isApiProblemDetails({ errors: { email: ["Invalid"] } })).toBe(true);
     expect(isApiProblemDetails({ detail: "Broken" })).toBe(true);
     expect(isApiProblemDetails({ title: "My Page" })).toBe(false);
     expect(isApiProblemDetails({ title: "General.Validation", status: 400 })).toBe(

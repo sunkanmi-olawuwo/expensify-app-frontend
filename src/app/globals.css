@@ -156,6 +156,42 @@
     linear-gradient(135deg, rgb(255 255 255 / 0.86), rgb(245 246 250 / 0.98));
 }
 
+@utility sidebar-scrollbar {
+  scrollbar-color: rgb(83 97 126 / 0.45) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+@layer utilities {
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 0.8rem;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border: 0.22rem solid transparent;
+    border-radius: 9999px;
+    background: linear-gradient(
+      180deg,
+      rgb(107 126 194 / 0.5),
+      rgb(83 97 126 / 0.6)
+    );
+    background-clip: padding-box;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      rgb(107 126 194 / 0.68),
+      rgb(83 97 126 / 0.78)
+    );
+    background-clip: padding-box;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

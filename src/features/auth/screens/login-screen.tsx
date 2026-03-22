@@ -3,31 +3,38 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { isApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { Button, Input } from "@/ui/base";
 
+import { AuthFeedbackBanner } from "../components/auth-feedback-banner";
 import { AuthFormCard } from "../components/auth-form-card";
 import {
+  type FieldTouched,
+  type LoginValues,
+  type PublicAuthStatus,
   authInputClassName,
-  neutralAuthPlaceholderMessage,
+  getPublicAuthStatusMessage,
   publicRoutes,
   validateLogin,
 } from "../types";
 
-import type { FieldTouched, LoginValues } from "../types";
-
 type LoginScreenProps = {
-  onSubmit?: (values: LoginValues) => Promise<void> | void;
+  status?: PublicAuthStatus | null;
 };
 
-export function LoginScreen({ onSubmit }: LoginScreenProps) {
+export function LoginScreen({ status = null }: LoginScreenProps) {
+  const { login } = useAuth();
   const [values, setValues] = useState<LoginValues>({ email: "", password: "" });
   const [touched, setTouched] = useState<FieldTouched<LoginValues>>({
     email: false,
     password: false,
   });
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validateLogin(values);
+  const searchStatusMessage = getPublicAuthStatusMessage(status);
 
   function updateValue(field: keyof LoginValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -44,25 +51,43 @@ export function LoginScreen({ onSubmit }: LoginScreenProps) {
     setStatusMessage(null);
 
     const hasErrors = Object.values(errors).some(Boolean);
+
     if (hasErrors) {
       return;
     }
 
-    if (onSubmit) {
-      await onSubmit(values);
-      return;
-    }
+    setIsSubmitting(true);
 
-    setStatusMessage(neutralAuthPlaceholderMessage);
+    try {
+      await login(values.email, values.password);
+    } catch (error) {
+      if (isApiError(error)) {
+        setStatusMessage(error.detail ?? error.message);
+      } else {
+        setStatusMessage("Unable to log in right now. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div className="flex min-h-full items-center justify-center py-6">
       <AuthFormCard
-        description="Step into the editorial workspace. Authentication wiring lands in the next phase, but the entry flow and validation are ready now."
+        description="Step back into your workspace with your verified account session."
         title="Log in to expensify"
       >
         <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+          {searchStatusMessage ? (
+            <AuthFeedbackBanner tone="success">
+              {searchStatusMessage}
+            </AuthFeedbackBanner>
+          ) : null}
+
+          {statusMessage ? (
+            <AuthFeedbackBanner tone="error">{statusMessage}</AuthFeedbackBanner>
+          ) : null}
+
           <div className="space-y-2">
             <label className="text-label-sm text-muted-foreground" htmlFor="email">
               Email
@@ -106,14 +131,17 @@ export function LoginScreen({ onSubmit }: LoginScreenProps) {
             ) : null}
           </div>
 
-          {statusMessage ? (
-            <div className="bg-surface-container-low rounded-2xl px-4 py-3">
-              <p className="text-body-md text-muted-foreground">{statusMessage}</p>
-            </div>
-          ) : null}
+          <div className="flex justify-end">
+            <Link
+              className="text-body-md text-primary font-medium"
+              href={publicRoutes.forgotPassword}
+            >
+              Forgot password?
+            </Link>
+          </div>
 
-          <Button className="h-12 w-full rounded-2xl" type="submit">
-            Log In
+          <Button className="h-12 w-full rounded-2xl" disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Logging In..." : "Log In"}
           </Button>
 
           <p className="text-body-md text-muted-foreground text-center">

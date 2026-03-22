@@ -50,7 +50,7 @@ export function TopBar() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent
-                  className="bg-surface-container-low w-[22rem] max-w-[90vw] border-none p-3"
+                  className="bg-surface-container-low flex h-dvh w-[22rem] max-w-[90vw] flex-col overflow-hidden border-none p-3"
                   showCloseButton={false}
                   side="left"
                 >
@@ -59,7 +59,10 @@ export function TopBar() {
                       Workspace navigation
                     </SheetTitle>
                   </SheetHeader>
-                  <AppSidebar onNavigate={() => setMobileNavOpen(false)} />
+                  <AppSidebar
+                    className="min-h-0 h-full"
+                    onNavigate={() => setMobileNavOpen(false)}
+                  />
                 </SheetContent>
               </Sheet>
             </div>

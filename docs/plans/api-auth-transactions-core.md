@@ -163,12 +163,13 @@ Every component built in this phase must follow these cross-cutting rules from D
   - Email + password inputs: `surface-container-low` background, `rounded-md`, labels in `label-sm` positioned above the field (never as placeholder text — per input field spec)
   - Focus state: transitions to `surface-container-highest` with ghost border (`primary` at 20% opacity via `ring` token)
   - "Log in" button: full-width primary gradient (`primary` → `primary-container` at 135°), `on-primary` text, `rounded-lg`
+  - "Forgot password?" link in `body-md` `primary` below the password field, right-aligned → navigates to `/forgot-password`
   - "Don't have an account? Sign up" link in `body-md` `muted-foreground`, "Sign up" portion in `primary` as a text link
   - Inline validation errors in `body-md` `destructive` with `spacing-2` gap below the field
   - API error display: `surface-container-low` card with `destructive` accent, `body-md` text
 - `screens/signup-screen.tsx`:
   - Same input styling as login
-  - Fields: name, email, password, confirm password — each with `label-sm` above-field labels
+  - Fields: first name, last name, email, password, confirm password — each with `label-sm` above-field labels (split name into `firstName`/`lastName` to match API contract)
   - "Sign up" full-width primary gradient button
   - "Already have an account? Log in" link in same style as login screen
 - `index.ts` — barrel export
@@ -199,40 +200,111 @@ Every component built in this phase must follow these cross-cutting rules from D
 
 ## Phase 3: Auth State & Token Management (`src/lib/auth/`)
 
+> **API reference:** All auth endpoints live under `/api/v1/users/` — see [auth-api-spec.md](../api/auth-api-spec.md) for full contracts. Key differences from earlier assumptions:
+>
+> - Registration = `POST /api/v1/users/register` (not `/auth/signup`)
+> - Login = `POST /api/v1/users/login` (not `/auth/login`)
+> - Response field is `token` (not `accessToken`)
+> - Registration returns only `{ userId }` — no tokens, user must log in separately
+> - No `GET /auth/me` endpoint — user info is decoded from JWT claims (`sub`, `email`, `firstName`, `lastName`, `role`)
+> - Forgot/reset password flows are supported by the API and should be implemented
+
 **Step 3.1** — Create `src/lib/auth/types.ts`:
 
-- `User` — `{ id, email, name, currency, timezone, monthStartDay }`
-- `LoginRequest` — `{ email, password }`
-- `LoginResponse` — `{ accessToken, refreshToken, user }`
-- `SignupRequest` — `{ name, email, password }`
-- `SignupResponse` — same shape as `LoginResponse`
-- `UpdateProfileRequest` — `{ name, currency, timezone, monthStartDay }`
-- `ChangePasswordRequest` — `{ currentPassword, newPassword }`
-- `AuthState` — `{ user: User | null; isAuthenticated: boolean; isLoading: boolean }`
+```ts
+// Request/response types matching the .NET API contract
+
+RegisterRequest { email, password, firstName, lastName, role }
+RegisterResponse { userId: string }
+
+LoginRequest { email, password }
+LoginResponse { token: string, refreshToken: string }
+
+RefreshRequest { token: string, refreshToken: string }
+RefreshResponse { token: string, refreshToken: string }
+
+ChangePasswordRequest { currentPassword: string, newPassword: string }
+
+ForgotPasswordRequest { email: string }
+
+ResetPasswordRequest { email: string, token: string, newPassword: string }
+
+// Decoded from JWT claims — no /me endpoint
+AuthUser { id (sub), email, firstName, lastName, role }
+```
+
+Refer to [auth-api-spec.md](../api/auth-api-spec.md) for full details.
 
 **Step 3.2** — Create `src/lib/auth/auth-store.ts`:
 
 - Token storage using `localStorage` with an in-memory fallback for SSR
-- `getAccessToken()`, `getRefreshToken()`, `setTokens(access, refresh)`, `clearTokens()`
+- `getToken()`, `getRefreshToken()`, `setTokens(token, refreshToken)`, `clearTokens()`
+  - Note: field name is `token` (not `accessToken`) to match API response shape
 - `isTokenExpired(token)` — decode JWT `exp` claim via base64 (no library needed)
+- `decodeUser(token): AuthUser` — extract `sub`, `email`, `firstName`, `lastName`, `role` claims from JWT payload (no `/me` endpoint exists, so user info comes from the token)
 - `getStoredUser()`, `setStoredUser(user)`, `clearStoredUser()`
 
-**Step 3.3** — Create `src/lib/auth/auth-context.tsx`:
+**Step 3.3** — Create `src/lib/auth/auth-service.ts`:
+
+- Typed API service functions for all auth endpoints:
+  - `register(data: RegisterRequest): Promise<RegisterResponse>` — `POST /api/v1/users/register` (201)
+  - `login(data: LoginRequest): Promise<LoginResponse>` — `POST /api/v1/users/login` (200)
+  - `refreshTokens(data: RefreshRequest): Promise<RefreshResponse>` — `POST /api/v1/users/refresh` (200)
+  - `logout(): Promise<void>` — `POST /api/v1/users/logout` (204, requires auth)
+  - `changePassword(data: ChangePasswordRequest): Promise<void>` — `POST /api/v1/users/change-password` (204, requires auth, invalidates ALL sessions)
+  - `forgotPassword(data: ForgotPasswordRequest): Promise<void>` — `POST /api/v1/users/forgot-password` (always 204)
+  - `resetPassword(data: ResetPasswordRequest): Promise<void>` — `POST /api/v1/users/reset-password` (204)
+
+**Step 3.4** — Create `src/lib/auth/auth-context.tsx`:
 
 - `AuthProvider` component wrapping React context
-- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `signup(name, email, password)`, `logout()`, `updateUser(user)`
-- On mount: hydrates from stored token/user, validates token expiry
-- `login()` / `signup()` — call API, store tokens, set user state
-- `logout()` — clear tokens, clear user, redirect to `/login`
+- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `register(firstName, lastName, email, password, role)`, `logout()`, `updateUser(user)`
+- On mount: hydrates from stored token, decodes JWT to extract user info, validates token expiry
+- `login()` — calls `POST /api/v1/users/login`, stores `token` + `refreshToken`, decodes user from JWT claims, sets user state
+- `register()` — calls `POST /api/v1/users/register`, returns `{ userId }`. Does NOT auto-login — redirects to `/login` with a success message. The register endpoint returns no tokens.
+- `logout()` — calls `POST /api/v1/users/logout` (server-side to invalidate all sessions), then clears tokens, clears user, redirects to `/login`
 
-**Step 3.4** — Create `src/lib/auth/auth-guard.tsx`:
+**Step 3.5** — Update `src/lib/api/http-client.ts` — add token refresh interceptor:
+
+- On 401 response: before clearing auth, attempt `POST /api/v1/users/refresh` with current `{ token, refreshToken }`
+- If refresh succeeds: store new token pair, retry the original request with new Bearer token
+- If refresh fails (e.g., refresh token also expired): clear auth state, redirect to `/login`
+- Prevent concurrent refresh attempts — use a promise lock so multiple 401s don't trigger parallel refreshes
+- Handle 429 (rate limit) responses: extract `Retry-After` header if present, surface as a user-friendly error message
+
+**Step 3.6** — Create `src/lib/auth/auth-guard.tsx`:
 
 - Client component wrapping protected content
 - If `isLoading` → render a full-page loading state: centered "expensify" wordmark in `headline-md` `muted-foreground` with a subtle pulse animation on `surface` background — keeps the editorial feel during auth hydration rather than showing a generic spinner
 - If `!isAuthenticated` → redirect to `/login` via `useRouter`
 - Otherwise → render `children`
 
-**Step 3.5** — Create `src/lib/auth/index.ts` — barrel export.
+**Step 3.7** — Create forgot/reset password pages:
+
+- `src/features/auth/screens/forgot-password-screen.tsx`:
+  - Email input field + "Send Reset Link" primary gradient button
+  - On submit: calls `POST /api/v1/users/forgot-password` with `{ email }`
+  - Always shows "Check your email for a reset link" success message (API always returns 204 to prevent user enumeration)
+  - "Back to Log In" link
+- `src/features/auth/screens/reset-password-screen.tsx`:
+  - Reads `email` and `token` from URL query parameters (from the email link)
+  - New password + confirm password fields
+  - On submit: calls `POST /api/v1/users/reset-password` with `{ email, token, newPassword }`
+  - On success: redirects to `/login` with "Password reset successfully" message
+  - On error (400): displays "Invalid or expired reset link" message
+- Route files:
+  - `src/app/(public)/forgot-password/page.tsx` → renders `ForgotPasswordScreen`
+  - `src/app/(public)/reset-password/page.tsx` → renders `ResetPasswordScreen`
+
+**Step 3.8** — Update signup screen for new API contract:
+
+- Update `src/features/auth/screens/signup-screen.tsx`:
+  - Fields: first name, last name, email, password, confirm password (split name into `firstName`/`lastName` to match API)
+  - On submit: calls `register()` from auth context
+  - On success (201): redirect to `/login` with success toast/message — do NOT auto-login (register returns no tokens)
+  - On error (409 Conflict): display "An account with this email already exists"
+
+**Step 3.9** — Create `src/lib/auth/index.ts` — barrel export.
 
 ---
 
@@ -252,13 +324,18 @@ Every component built in this phase must follow these cross-cutting rules from D
   - Separate `SurfaceCard` — keeps the two concerns visually distinct with `spacing-10` gap between cards
   - Eyebrow: "SECURITY" in `label-sm` all-caps
   - Fields: current password, new password, confirm new password — same input styling
+  - API sends only `{ currentPassword, newPassword }` — confirm is client-side validation only
   - "Update Password" primary gradient button, right-aligned
+  - **Post-submit behavior**: on success (204), ALL sessions are invalidated (per API spec). Must clear tokens and redirect to `/login` with a "Password changed — please log in again" message. Show a confirmation dialog before submitting to warn the user they will be logged out everywhere.
 - `screens/profile-screen.tsx`:
   - `PageHeader` with eyebrow "Account", editorial title and description in the established pattern
   - Stacks profile form card + change password card with `spacing-8` between them
   - Uses `useAuth()` for current user data, pre-populates form
   - `max-w-2xl` content width — profile forms shouldn't stretch full-width, keeps the editorial "focused" feel
 - `index.ts`
+
+- `reset-password-screen.tsx` must pass `email` and `token` exactly as received from the URL query parameters. Do not URL-decode or base64-decode the token.
+- profile planning should use first-name and last-name fields instead of a single name field unless the backend profile contract changes.
 
 **Step 4.2** — Create route `src/app/(workspace)/profile/page.tsx`.
 
@@ -272,247 +349,3 @@ Every component built in this phase must follow these cross-cutting rules from D
 - Wire user avatar click to navigate to `/profile`
 
 ---
-
-## Phase 5: Transactions Feature — API + Real UI (Epic A)
-
-**Step 5.1** — Create `src/features/transactions/api/`:
-
-- `schemas.ts` — Zod schemas for `Transaction`, `TransactionFilters`, `CreateTransactionRequest`, `UpdateTransactionRequest`
-- `transactions-api.ts` — typed API service functions using `httpClient`:
-  - `getTransactions(filters): Promise<PaginatedResponse<Transaction>>`
-  - `getTransaction(id): Promise<Transaction>`
-  - `createTransaction(data): Promise<Transaction>`
-  - `updateTransaction(id, data): Promise<Transaction>`
-  - `deleteTransaction(id): Promise<void>`
-
-**Step 5.2** — Update `src/features/transactions/types/index.ts` — replace placeholder types with real domain types from the PRD:
-
-```
-Transaction {
-  id, userId, type ('expense' | 'income'),
-  amount, currency, date,
-  category, merchant, note,
-  tags[], paymentMethod,
-  status ('pending' | 'completed' | 'cancelled'),
-  createdAt, updatedAt
-}
-TransactionFilters {
-  month, year, category, merchant,
-  tags[], amountMin, amountMax,
-  type, status, page, pageSize
-}
-```
-
-**Step 5.3** — Create `src/features/transactions/hooks/`:
-
-- `query-keys.ts` — centralized query key factory: `transactionKeys.all`, `.list(filters)`, `.detail(id)`
-- `use-transactions.ts` — `useQuery` wrapping `getTransactions(filters)`, returns `{ data, isLoading, isError, error }`
-- `use-transaction.ts` — `useQuery` wrapping `getTransaction(id)` for detail view
-- `use-create-transaction.ts` — `useMutation` wrapping `createTransaction`, invalidates list queries on success
-- `use-update-transaction.ts` — `useMutation` wrapping `updateTransaction`, invalidates list + detail queries
-- `use-delete-transaction.ts` — `useMutation` wrapping `deleteTransaction`, optimistic removal from list cache
-
-**Step 5.4** — Build real components (replacing placeholders):
-
-- Update `TransactionsFilterBar`:
-  - Horizontal row of filter chips/cards with `surface-container-low` background and `spacing-4` gaps (per DESIGN.md §6 Filter Bar)
-  - Date Range: calendar icon + formatted date range text, triggers a popover date picker
-  - Category dropdown: chevron-down icon, glassmorphism floating menu (70% opacity + 20px backdrop-blur), active item uses `primary-fixed` tinted background
-  - Payment Method dropdown: same styling
-  - "Clear All Filters" button on the far right: filter icon + text in `destructive` or `on-surface`, tertiary/ghost style
-  - All filter chips: `rounded-lg`, `body-md` text, interactive targets at least `spacing-12` (3rem) height
-
-- Update `TransactionsTable`:
-  - Header row: `label-sm` all-caps columns — DATE, DESCRIPTION & CATEGORY, STATUS, AMOUNT — on `surface-container-low` background
-  - Data rows: no alternate row backgrounds, no horizontal dividers — rely on `spacing-6` vertical gaps between rows and `1px` background color shift on hover for interactivity (per §6 High-End Financial rule)
-  - Each row: date + time in `body-md`, category icon in a tinted circular container (icon color at 10% opacity background, full token color icon — per §7 Iconography), merchant in `title-lg`, subcategory in `body-md` `muted-foreground`
-  - Status badges: pill-shaped with tinted backgrounds — "Completed" = `secondary` tint bg + `secondary` text, "Pending" = `outline-variant` tint bg + `on-surface` text (per §6 Transaction History Table)
-  - Amount formatting: expenses prefixed with "-" in `destructive`, income prefixed with "+" in `secondary` (per §6). Currency values with commas and two decimal places (e.g., "$142,850.00" per Do's)
-  - Actions row: "Export CSV" and "Print" as secondary buttons (`surface-container-high` bg, `on-surface` text, no border) with icons, top-right aligned
-  - Pagination: centered below table, page numbers in `body-md` within `rounded-full` containers, active page uses `primary` bg + `on-primary` text, inactive uses `surface-container-low`, prev/next arrows on sides, "Showing 1 to 5 of 248 transactions" summary in `label-sm` on the left
-  - Loading skeleton: shimmer blocks matching the row layout shape, `surface-container-low` animated fill
-  - Empty state: centered illustration area, `headline-md` title, `body-md` description, primary CTA to add first transaction
-
-- Create `TransactionModal` (per DESIGN.md §6 Modal / Dialog):
-  - Overlay: semi-transparent dark backdrop (`on-surface` at ~50% opacity)
-  - Container: `surface` background, `rounded-xl` shape, centered, `max-w-[600px]`, close button (X) top-right
-  - Header: "Log Transaction" in `headline-md` (Manrope), "Update your financial record" in `body-md` `muted-foreground`
-  - Amount input: large centered input using `display-lg` (Manrope, 3.5rem) for the value, `$` prefix in `body-md` `muted-foreground`, placeholder "0.00"
-  - Transaction type toggle: expense/income segmented control in `surface-container-low`, active segment in `surface` with `shadow-ambient-sm`
-  - Category selector: dropdown with category icon + `body-md` label, glassmorphism floating menu
-  - Date picker: input field with calendar icon on the right, `surface-container-low` base, popover calendar
-  - Payment method: horizontal row of selectable cards (Credit Card, Cash, Transfer) with icons — selected state uses ghost border (`primary` at 20% opacity), unselected uses `surface-container-low` bg, `rounded-lg`
-  - Merchant input: `surface-container-low` base, `label-sm` above-field label
-  - Notes: textarea with `surface-container-low` background, placeholder in `body-md` `muted-foreground`
-  - Submit: full-width primary gradient button ("Save Transaction") — gradient `primary` → `primary-container` at 135°, `on-primary` text, `rounded-lg`
-  - Security note: "Secure end-to-end encrypted entry" with lock icon in `label-sm` `muted-foreground` below the button
-  - Internal padding: `spacing-8` per modal spec
-  - Uses `useCreateTransaction` / `useUpdateTransaction` mutations
-
-**Step 5.5** — Wire the "+ Add New" button in the top bar to open the transaction modal (via a shared state or callback prop).
-
----
-
-## Phase 6: Provider Wiring & Route Protection
-
-**Step 6.1** — Update `src/app/layout.tsx`:
-
-- Add `AuthProvider` and `QueryClientProvider` to the provider tree (wrap around `TooltipProvider`)
-
-**Step 6.2** — Create `src/ui/composite/workspace-footer.tsx`:
-
-- Compact footer rendered below the main content area (inside the content column, not spanning the sidebar)
-- Left: "© 2026 expensify" in `label-sm` (all-caps, `muted-foreground`)
-- Right: "Help", "Privacy", "Terms" links in `body-md` `muted-foreground`, hover transitions to `foreground`
-- Background: transparent or inherits from content area — no explicit background color needed since it sits within the content column which already has the editorial gradient wash. This keeps it lighter and more integrated than the public footer
-- No top border — uses `spacing-10` top margin for visual separation (tonal shift from content cards above provides natural boundary)
-- Interactive link targets: at least `spacing-12` (3rem) height
-- Sticks to bottom: `mt-auto` in a flex column layout
-- `spacing-6` internal padding
-
-**Step 6.3** — Update `src/ui/composite/app-shell.tsx`:
-
-- Add `WorkspaceFooter` below the `{children}` content area
-- Ensure the content column is a flex column with `min-h-screen` so the footer pushes to the bottom
-
-**Step 6.4** — Update `src/app/(workspace)/layout.tsx`:
-
-- Wrap `AppShell` with `AuthGuard`
-
-**Step 6.5** — Update `src/ui/composite/index.ts` — add `WorkspaceFooter` to barrel export.
-
-**Step 6.6** — Update `src/test/render.tsx`:
-
-- Add `QueryClientProvider` (with a fresh `QueryClient` per test) and `AuthProvider` to `TestProviders`
-
-**Step 6.7** — Add new shadcn primitives as needed and wrap through `src/ui/base/`:
-
-- `dialog` — for transaction modal
-- `select` — for dropdowns (category, payment method, currency, timezone)
-- `dropdown-menu` — for user avatar menu
-- `label` — for form fields
-- `textarea` — for notes
-- `calendar` + `popover` — for date picker
-
----
-
-## Phase 7: Environment & Config
-
-**Step 7.1** — Create `.env.example`:
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
-```
-
-**Step 7.2** — Verify `.gitignore` covers `.env.local`, `.env.*.local`.
-
-**Step 7.3** — Update `next.config.ts`:
-
-- Document CORS expectations (the .NET API should allow the frontend origin)
-- Optionally add `rewrites` for API proxying in development to avoid CORS during local dev:
-
-```ts
-async rewrites() {
-  return [
-    { source: '/api/:path*', destination: 'http://localhost:5000/api/:path*' }
-  ];
-}
-```
-
----
-
-## Phase 8: Tests
-
-**Step 8.1** — Unit: `src/lib/api/__tests__/http-client.test.ts`:
-
-- Builds correct URLs with base + path + query params
-- Sets `Authorization` header when token is present
-- Parses JSON responses
-- Throws `ApiError` on non-2xx with `ProblemDetails` parsing
-- Handles network errors gracefully
-- Respects abort signals
-
-**Step 8.2** — Unit: `src/lib/api/__tests__/api-error.test.ts`:
-
-- Parses `ProblemDetails` format
-- Parses `ValidationProblemDetails` with field errors
-- Type guard works correctly
-- Convenience methods (`isNotFound`, etc.) return correct values
-
-**Step 8.3** — Unit: `src/lib/auth/__tests__/auth-store.test.ts`:
-
-- Stores and retrieves tokens
-- Detects expired tokens
-- Clears all auth data on `clearTokens()`
-
-**Step 8.4** — Integration: `src/features/auth/__tests__/login-screen.test.tsx`:
-
-- Renders email and password fields
-- Shows validation errors for empty fields
-- Calls login API on submit with correct payload
-- Displays API error messages on failure
-- Redirects on successful login
-
-**Step 8.5** — Integration: `src/features/auth/__tests__/signup-screen.test.tsx`:
-
-- Renders all fields (name, email, password, confirm)
-- Validates password match
-- Calls signup API on submit
-
-**Step 8.6** — Integration: `src/features/transactions/__tests__/transactions-screen.test.tsx`:
-
-- Upgrade existing placeholder test
-- Renders loading state
-- Renders transaction rows from mocked query data
-- Filter controls update query parameters
-
-**Step 8.7** — E2E: update `e2e/smoke.spec.ts`:
-
-- Unauthenticated visit to `/dashboard` redirects to `/login`
-- Home page renders with CTA buttons
-- Login page renders form
-- Signup page renders form
-
----
-
-## Public Interfaces and Contracts
-
-- **New import surfaces:** `@/lib/api/*`, `@/lib/auth/*`, `@/features/auth/*`, `@/features/profile/*`, `@/features/home/*`
-- **New routes:** `/` (home), `/login`, `/signup`, `/profile`
-- **Protected routes:** everything under `(workspace)` — `/dashboard`, `/transactions`, `/analytics`, `/settings`, `/profile`, `/chat`
-- **Public routes:** `/`, `/login`, `/signup`
-- **API contract:** frontend defines TypeScript types + Zod schemas; .NET backend implements matching endpoints
-- **Quality gates:** unchanged — `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`
-
-## Assumptions
-
-- The .NET Core API follows REST conventions and returns `application/json`.
-- Error responses use RFC 7807 `ProblemDetails` format (standard in ASP.NET Core).
-- Auth endpoints: `POST /auth/login`, `POST /auth/signup`, `POST /auth/refresh`, `GET /auth/me`.
-- Transaction endpoints: `GET /transactions`, `GET /transactions/:id`, `POST /transactions`, `PUT /transactions/:id`, `DELETE /transactions/:id`.
-- Profile endpoints: `GET /profile`, `PUT /profile`, `POST /profile/change-password`.
-- The API runs on `localhost:5000` during development.
-- JWT tokens include standard `exp`, `sub`, and `email` claims.
-
-## Dependencies Added
-
-| Package                 | Purpose                                                              |
-| ----------------------- | -------------------------------------------------------------------- |
-| `zod`                   | Runtime API response validation at the network boundary              |
-| `@tanstack/react-query` | Server-state management — caching, refetch, mutations, deduplication |
-
-## Critical Files
-
-| File                                                  | Purpose                                                     |
-| ----------------------------------------------------- | ----------------------------------------------------------- |
-| `src/lib/api/http-client.ts`                          | Central typed HTTP client for all .NET API communication    |
-| `src/lib/api/api-error.ts`                            | Error normalization for .NET ProblemDetails                 |
-| `src/lib/api/query-client.tsx`                        | TanStack Query provider and default config                  |
-| `src/lib/auth/auth-context.tsx`                       | Auth state provider (login, logout, user)                   |
-| `src/lib/auth/auth-guard.tsx`                         | Route protection for workspace pages                        |
-| `src/ui/composite/public-navbar.tsx`                  | Top navigation for public pages (brand, login/signup links) |
-| `src/ui/composite/public-footer.tsx`                  | Footer for public pages (copyright, legal links)            |
-| `src/ui/composite/workspace-footer.tsx`               | Footer for workspace pages (compact, inside content area)   |
-| `src/app/(public)/layout.tsx`                         | Public layout — navbar + content + footer, no sidebar       |
-| `src/features/transactions/api/transactions-api.ts`   | Typed transaction CRUD service                              |
-| `src/features/transactions/hooks/use-transactions.ts` | TanStack Query hook for transaction list                    |
