@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowUpRight, LifeBuoy, LogOut } from "lucide-react";
+import { LifeBuoy, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useAuth } from "@/lib/auth";
 import { primaryNavItems } from "@/lib/app-shell";
 import { cn } from "@/lib/utils";
-import { Badge, Button } from "@/ui/base";
 
 type AppSidebarProps = {
   className?: string;
@@ -15,11 +15,12 @@ type AppSidebarProps = {
 
 export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <aside
       className={cn(
-        "bg-sidebar shadow-ambient-sm flex h-full flex-col gap-8 rounded-[var(--radius-shell)] px-5 py-6",
+        "sidebar-scrollbar bg-sidebar shadow-ambient-sm flex h-full min-h-0 flex-col gap-8 overflow-y-auto rounded-[var(--radius-shell)] px-5 py-6 pr-3",
         className,
       )}
     >
@@ -38,7 +39,7 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
         </p>
       </div>
 
-      <nav aria-label="Primary navigation" className="space-y-2">
+      <nav aria-label="Primary navigation" className="space-y-2 pr-2">
         {primaryNavItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -68,24 +69,7 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto space-y-6">
-        <div className="text-primary-foreground shadow-ambient-lg rounded-[calc(var(--radius-shell)-0.35rem)] bg-[linear-gradient(140deg,var(--primary),var(--primary-container))] p-5">
-          <Badge className="bg-white/18 text-white hover:bg-white/18">
-            Pro Feature
-          </Badge>
-          <h2 className="text-title-lg mt-4 text-white">
-            Upgrade to deeper personal finance insights.
-          </h2>
-          <p className="text-body-md mt-2 text-white/82">
-            Preserve this card as the shell-level CTA while product features
-            mature underneath it.
-          </p>
-          <Button className="text-primary mt-5 w-full bg-white hover:bg-white/92">
-            Upgrade now
-            <ArrowUpRight className="size-4" />
-          </Button>
-        </div>
-
+      <div className="mt-auto pr-2">
         <div className="space-y-2">
           <button
             className="text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex w-full items-center gap-3 rounded-full px-3 py-2 transition-colors"
@@ -96,6 +80,7 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
           </button>
           <button
             className="text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex w-full items-center gap-3 rounded-full px-3 py-2 transition-colors"
+            onClick={() => void logout()}
             type="button"
           >
             <LogOut className="size-4" />

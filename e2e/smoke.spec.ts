@@ -19,21 +19,17 @@ test("renders the public home page and keeps chat out of the visible nav", async
   await expect(page.getByRole("link", { name: "Chat" })).toHaveCount(0);
 });
 
-test("navigates between primary routes and loads chat by direct URL", async ({
+test("redirects unauthenticated workspace routes to login", async ({
   page,
 }) => {
   await page.goto("/dashboard");
-  await page.getByRole("link", { name: "Transactions" }).click();
-  await expect(page).toHaveURL(/\/transactions$/);
-
-  await page.getByRole("link", { name: "Analytics" }).click();
-  await expect(page).toHaveURL(/\/analytics$/);
-
-  await page.getByRole("link", { name: "Settings" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole("heading", { name: "Log in to expensify" }),
+  ).toBeVisible();
 
   await page.goto("/chat");
-  await expect(page.getByText("Route scaffold only")).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("renders login and signup forms", async ({ page }) => {
@@ -48,6 +44,7 @@ test("renders login and signup forms", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Create your expensify account" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Name")).toBeVisible();
+  await expect(page.getByLabel("First Name")).toBeVisible();
+  await expect(page.getByLabel("Last Name")).toBeVisible();
   await expect(page.getByLabel("Confirm Password")).toBeVisible();
 });

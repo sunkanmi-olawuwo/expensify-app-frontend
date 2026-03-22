@@ -163,12 +163,13 @@ Every component built in this phase must follow these cross-cutting rules from D
   - Email + password inputs: `surface-container-low` background, `rounded-md`, labels in `label-sm` positioned above the field (never as placeholder text — per input field spec)
   - Focus state: transitions to `surface-container-highest` with ghost border (`primary` at 20% opacity via `ring` token)
   - "Log in" button: full-width primary gradient (`primary` → `primary-container` at 135°), `on-primary` text, `rounded-lg`
+  - "Forgot password?" link in `body-md` `primary` below the password field, right-aligned → navigates to `/forgot-password`
   - "Don't have an account? Sign up" link in `body-md` `muted-foreground`, "Sign up" portion in `primary` as a text link
   - Inline validation errors in `body-md` `destructive` with `spacing-2` gap below the field
   - API error display: `surface-container-low` card with `destructive` accent, `body-md` text
 - `screens/signup-screen.tsx`:
   - Same input styling as login
-  - Fields: name, email, password, confirm password — each with `label-sm` above-field labels
+  - Fields: first name, last name, email, password, confirm password — each with `label-sm` above-field labels (split name into `firstName`/`lastName` to match API contract)
   - "Sign up" full-width primary gradient button
   - "Already have an account? Log in" link in same style as login screen
 - `index.ts` — barrel export
@@ -199,40 +200,111 @@ Every component built in this phase must follow these cross-cutting rules from D
 
 ## Phase 3: Auth State & Token Management (`src/lib/auth/`)
 
+> **API reference:** All auth endpoints live under `/api/v1/users/` — see [auth-api-spec.md](../api/auth-api-spec.md) for full contracts. Key differences from earlier assumptions:
+>
+> - Registration = `POST /api/v1/users/register` (not `/auth/signup`)
+> - Login = `POST /api/v1/users/login` (not `/auth/login`)
+> - Response field is `token` (not `accessToken`)
+> - Registration returns only `{ userId }` — no tokens, user must log in separately
+> - No `GET /auth/me` endpoint — user info is decoded from JWT claims (`sub`, `email`, `firstName`, `lastName`, `role`)
+> - Forgot/reset password flows are supported by the API and should be implemented
+
 **Step 3.1** — Create `src/lib/auth/types.ts`:
 
-- `User` — `{ id, email, name, currency, timezone, monthStartDay }`
-- `LoginRequest` — `{ email, password }`
-- `LoginResponse` — `{ accessToken, refreshToken, user }`
-- `SignupRequest` — `{ name, email, password }`
-- `SignupResponse` — same shape as `LoginResponse`
-- `UpdateProfileRequest` — `{ name, currency, timezone, monthStartDay }`
-- `ChangePasswordRequest` — `{ currentPassword, newPassword }`
-- `AuthState` — `{ user: User | null; isAuthenticated: boolean; isLoading: boolean }`
+```ts
+// Request/response types matching the .NET API contract
+
+RegisterRequest { email, password, firstName, lastName, role }
+RegisterResponse { userId: string }
+
+LoginRequest { email, password }
+LoginResponse { token: string, refreshToken: string }
+
+RefreshRequest { token: string, refreshToken: string }
+RefreshResponse { token: string, refreshToken: string }
+
+ChangePasswordRequest { currentPassword: string, newPassword: string }
+
+ForgotPasswordRequest { email: string }
+
+ResetPasswordRequest { email: string, token: string, newPassword: string }
+
+// Decoded from JWT claims — no /me endpoint
+AuthUser { id (sub), email, firstName, lastName, role }
+```
+
+Refer to [auth-api-spec.md](../api/auth-api-spec.md) for full details.
 
 **Step 3.2** — Create `src/lib/auth/auth-store.ts`:
 
 - Token storage using `localStorage` with an in-memory fallback for SSR
-- `getAccessToken()`, `getRefreshToken()`, `setTokens(access, refresh)`, `clearTokens()`
+- `getToken()`, `getRefreshToken()`, `setTokens(token, refreshToken)`, `clearTokens()`
+  - Note: field name is `token` (not `accessToken`) to match API response shape
 - `isTokenExpired(token)` — decode JWT `exp` claim via base64 (no library needed)
+- `decodeUser(token): AuthUser` — extract `sub`, `email`, `firstName`, `lastName`, `role` claims from JWT payload (no `/me` endpoint exists, so user info comes from the token)
 - `getStoredUser()`, `setStoredUser(user)`, `clearStoredUser()`
 
-**Step 3.3** — Create `src/lib/auth/auth-context.tsx`:
+**Step 3.3** — Create `src/lib/auth/auth-service.ts`:
+
+- Typed API service functions for all auth endpoints:
+  - `register(data: RegisterRequest): Promise<RegisterResponse>` — `POST /api/v1/users/register` (201)
+  - `login(data: LoginRequest): Promise<LoginResponse>` — `POST /api/v1/users/login` (200)
+  - `refreshTokens(data: RefreshRequest): Promise<RefreshResponse>` — `POST /api/v1/users/refresh` (200)
+  - `logout(): Promise<void>` — `POST /api/v1/users/logout` (204, requires auth)
+  - `changePassword(data: ChangePasswordRequest): Promise<void>` — `POST /api/v1/users/change-password` (204, requires auth, invalidates ALL sessions)
+  - `forgotPassword(data: ForgotPasswordRequest): Promise<void>` — `POST /api/v1/users/forgot-password` (always 204)
+  - `resetPassword(data: ResetPasswordRequest): Promise<void>` — `POST /api/v1/users/reset-password` (204)
+
+**Step 3.4** — Create `src/lib/auth/auth-context.tsx`:
 
 - `AuthProvider` component wrapping React context
-- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `signup(name, email, password)`, `logout()`, `updateUser(user)`
-- On mount: hydrates from stored token/user, validates token expiry
-- `login()` / `signup()` — call API, store tokens, set user state
-- `logout()` — clear tokens, clear user, redirect to `/login`
+- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `register(firstName, lastName, email, password, role)`, `logout()`, `updateUser(user)`
+- On mount: hydrates from stored token, decodes JWT to extract user info, validates token expiry
+- `login()` — calls `POST /api/v1/users/login`, stores `token` + `refreshToken`, decodes user from JWT claims, sets user state
+- `register()` — calls `POST /api/v1/users/register`, returns `{ userId }`. Does NOT auto-login — redirects to `/login` with a success message. The register endpoint returns no tokens.
+- `logout()` — calls `POST /api/v1/users/logout` (server-side to invalidate all sessions), then clears tokens, clears user, redirects to `/login`
 
-**Step 3.4** — Create `src/lib/auth/auth-guard.tsx`:
+**Step 3.5** — Update `src/lib/api/http-client.ts` — add token refresh interceptor:
+
+- On 401 response: before clearing auth, attempt `POST /api/v1/users/refresh` with current `{ token, refreshToken }`
+- If refresh succeeds: store new token pair, retry the original request with new Bearer token
+- If refresh fails (e.g., refresh token also expired): clear auth state, redirect to `/login`
+- Prevent concurrent refresh attempts — use a promise lock so multiple 401s don't trigger parallel refreshes
+- Handle 429 (rate limit) responses: extract `Retry-After` header if present, surface as a user-friendly error message
+
+**Step 3.6** — Create `src/lib/auth/auth-guard.tsx`:
 
 - Client component wrapping protected content
 - If `isLoading` → render a full-page loading state: centered "expensify" wordmark in `headline-md` `muted-foreground` with a subtle pulse animation on `surface` background — keeps the editorial feel during auth hydration rather than showing a generic spinner
 - If `!isAuthenticated` → redirect to `/login` via `useRouter`
 - Otherwise → render `children`
 
-**Step 3.5** — Create `src/lib/auth/index.ts` — barrel export.
+**Step 3.7** — Create forgot/reset password pages:
+
+- `src/features/auth/screens/forgot-password-screen.tsx`:
+  - Email input field + "Send Reset Link" primary gradient button
+  - On submit: calls `POST /api/v1/users/forgot-password` with `{ email }`
+  - Always shows "Check your email for a reset link" success message (API always returns 204 to prevent user enumeration)
+  - "Back to Log In" link
+- `src/features/auth/screens/reset-password-screen.tsx`:
+  - Reads `email` and `token` from URL query parameters (from the email link)
+  - New password + confirm password fields
+  - On submit: calls `POST /api/v1/users/reset-password` with `{ email, token, newPassword }`
+  - On success: redirects to `/login` with "Password reset successfully" message
+  - On error (400): displays "Invalid or expired reset link" message
+- Route files:
+  - `src/app/(public)/forgot-password/page.tsx` → renders `ForgotPasswordScreen`
+  - `src/app/(public)/reset-password/page.tsx` → renders `ResetPasswordScreen`
+
+**Step 3.8** — Update signup screen for new API contract:
+
+- Update `src/features/auth/screens/signup-screen.tsx`:
+  - Fields: first name, last name, email, password, confirm password (split name into `firstName`/`lastName` to match API)
+  - On submit: calls `register()` from auth context
+  - On success (201): redirect to `/login` with success toast/message — do NOT auto-login (register returns no tokens)
+  - On error (409 Conflict): display "An account with this email already exists"
+
+**Step 3.9** — Create `src/lib/auth/index.ts` — barrel export.
 
 ---
 
@@ -252,13 +324,18 @@ Every component built in this phase must follow these cross-cutting rules from D
   - Separate `SurfaceCard` — keeps the two concerns visually distinct with `spacing-10` gap between cards
   - Eyebrow: "SECURITY" in `label-sm` all-caps
   - Fields: current password, new password, confirm new password — same input styling
+  - API sends only `{ currentPassword, newPassword }` — confirm is client-side validation only
   - "Update Password" primary gradient button, right-aligned
+  - **Post-submit behavior**: on success (204), ALL sessions are invalidated (per API spec). Must clear tokens and redirect to `/login` with a "Password changed — please log in again" message. Show a confirmation dialog before submitting to warn the user they will be logged out everywhere.
 - `screens/profile-screen.tsx`:
   - `PageHeader` with eyebrow "Account", editorial title and description in the established pattern
   - Stacks profile form card + change password card with `spacing-8` between them
   - Uses `useAuth()` for current user data, pre-populates form
   - `max-w-2xl` content width — profile forms shouldn't stretch full-width, keeps the editorial "focused" feel
 - `index.ts`
+
+- `reset-password-screen.tsx` must pass `email` and `token` exactly as received from the URL query parameters. Do not URL-decode or base64-decode the token.
+- Phase 4 profile planning should use first-name and last-name fields instead of a single name field unless the backend profile contract changes.
 
 **Step 4.2** — Create route `src/app/(workspace)/profile/page.tsx`.
 
@@ -431,6 +508,8 @@ async rewrites() {
 - Throws `ApiError` on non-2xx with `ProblemDetails` parsing
 - Handles network errors gracefully
 - Respects abort signals
+- Attempts token refresh on 401 before clearing auth
+- Handles 429 rate-limit responses gracefully
 
 **Step 8.2** — Unit: `src/lib/api/__tests__/api-error.test.ts`:
 
@@ -441,46 +520,75 @@ async rewrites() {
 
 **Step 8.3** — Unit: `src/lib/auth/__tests__/auth-store.test.ts`:
 
-- Stores and retrieves tokens
+- Stores and retrieves tokens (using `token` field name, not `accessToken`)
+- Decodes user info from JWT claims (`sub`, `email`, `firstName`, `lastName`, `role`)
 - Detects expired tokens
 - Clears all auth data on `clearTokens()`
 
-**Step 8.4** — Integration: `src/features/auth/__tests__/login-screen.test.tsx`:
+**Step 8.4** — Unit: `src/lib/auth/__tests__/auth-service.test.ts`:
+
+- `register()` sends correct payload to `POST /api/v1/users/register`, returns `{ userId }`
+- `login()` sends correct payload to `POST /api/v1/users/login`, returns `{ token, refreshToken }`
+- `refreshTokens()` sends both `token` and `refreshToken` in body
+- `logout()` sends authenticated `POST /api/v1/users/logout`
+- `changePassword()` sends `{ currentPassword, newPassword }` to correct endpoint
+- `forgotPassword()` sends `{ email }`, always resolves (204)
+- `resetPassword()` sends `{ email, token, newPassword }`
+
+**Step 8.5** — Integration: `src/features/auth/__tests__/login-screen.test.tsx`:
 
 - Renders email and password fields
 - Shows validation errors for empty fields
 - Calls login API on submit with correct payload
 - Displays API error messages on failure
 - Redirects on successful login
+- Shows "Forgot password?" link
 
-**Step 8.5** — Integration: `src/features/auth/__tests__/signup-screen.test.tsx`:
+**Step 8.6** — Integration: `src/features/auth/__tests__/signup-screen.test.tsx`:
 
-- Renders all fields (name, email, password, confirm)
+- Renders all fields (firstName, lastName, email, password, confirm)
 - Validates password match
-- Calls signup API on submit
+- Calls register API on submit (not login)
+- On success: redirects to `/login` with success message (does NOT auto-login)
 
-**Step 8.6** — Integration: `src/features/transactions/__tests__/transactions-screen.test.tsx`:
+**Step 8.7** — Integration: `src/features/auth/__tests__/forgot-password-screen.test.tsx`:
+
+- Renders email field and submit button
+- Always shows "check your email" message after submit (regardless of API response)
+- Shows "Back to Log In" link
+
+**Step 8.8** — Integration: `src/features/auth/__tests__/reset-password-screen.test.tsx`:
+
+- Reads `email` and `token` from URL query params
+- Renders new password + confirm password fields
+- Calls reset password API on submit
+- Redirects to `/login` on success
+- Shows error message on invalid/expired token
+
+**Step 8.9** — Integration: `src/features/transactions/__tests__/transactions-screen.test.tsx`:
 
 - Upgrade existing placeholder test
 - Renders loading state
 - Renders transaction rows from mocked query data
 - Filter controls update query parameters
 
-**Step 8.7** — E2E: update `e2e/smoke.spec.ts`:
+**Step 8.10** — E2E: update `e2e/smoke.spec.ts`:
 
 - Unauthenticated visit to `/dashboard` redirects to `/login`
 - Home page renders with CTA buttons
 - Login page renders form
 - Signup page renders form
+- Forgot password page renders form
+- Reset password page renders form (with mock query params)
 
 ---
 
 ## Public Interfaces and Contracts
 
 - **New import surfaces:** `@/lib/api/*`, `@/lib/auth/*`, `@/features/auth/*`, `@/features/profile/*`, `@/features/home/*`
-- **New routes:** `/` (home), `/login`, `/signup`, `/profile`
+- **New routes:** `/` (home), `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/profile`
 - **Protected routes:** everything under `(workspace)` — `/dashboard`, `/transactions`, `/analytics`, `/settings`, `/profile`, `/chat`
-- **Public routes:** `/`, `/login`, `/signup`
+- **Public routes:** `/`, `/login`, `/signup`, `/forgot-password`, `/reset-password`
 - **API contract:** frontend defines TypeScript types + Zod schemas; .NET backend implements matching endpoints
 - **Quality gates:** unchanged — `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`
 
@@ -488,11 +596,16 @@ async rewrites() {
 
 - The .NET Core API follows REST conventions and returns `application/json`.
 - Error responses use RFC 7807 `ProblemDetails` format (standard in ASP.NET Core).
-- Auth endpoints: `POST /auth/login`, `POST /auth/signup`, `POST /auth/refresh`, `GET /auth/me`.
-- Transaction endpoints: `GET /transactions`, `GET /transactions/:id`, `POST /transactions`, `PUT /transactions/:id`, `DELETE /transactions/:id`.
-- Profile endpoints: `GET /profile`, `PUT /profile`, `POST /profile/change-password`.
+- Auth endpoints (all under `/api/v1/users/`): `POST /register`, `POST /login`, `POST /refresh`, `POST /logout`, `POST /change-password`, `POST /forgot-password`, `POST /reset-password` — see [auth-api-spec.md](../api/auth-api-spec.md).
+- No `GET /auth/me` endpoint — user info is decoded from JWT claims.
+- Transaction endpoints: `GET /transactions`, `GET /transactions/:id`, `POST /transactions`, `PUT /transactions/:id`, `DELETE /transactions/:id` (TBD — awaiting API spec).
+- Profile endpoints: `GET /profile`, `PUT /profile` (TBD — awaiting API spec). Change password is handled by the auth endpoint above.
 - The API runs on `localhost:5000` during development.
-- JWT tokens include standard `exp`, `sub`, and `email` claims.
+- JWT tokens include standard `exp`, `sub` (user ID), `email`, `firstName`, `lastName`, and `role` claims.
+- Login response field is `token` (not `accessToken`) — the field name must be used consistently.
+- Registration does NOT return tokens — the user must log in after registering.
+- Change password, logout, and reset password all invalidate ALL active sessions.
+- All auth endpoints are rate-limited; the frontend should handle `429 Too Many Requests` gracefully.
 
 ## Dependencies Added
 
@@ -508,6 +621,7 @@ async rewrites() {
 | `src/lib/api/http-client.ts`                          | Central typed HTTP client for all .NET API communication    |
 | `src/lib/api/api-error.ts`                            | Error normalization for .NET ProblemDetails                 |
 | `src/lib/api/query-client.tsx`                        | TanStack Query provider and default config                  |
+| `src/lib/auth/auth-service.ts`                        | Typed auth API functions (register, login, refresh, etc.)   |
 | `src/lib/auth/auth-context.tsx`                       | Auth state provider (login, logout, user)                   |
 | `src/lib/auth/auth-guard.tsx`                         | Route protection for workspace pages                        |
 | `src/ui/composite/public-navbar.tsx`                  | Top navigation for public pages (brand, login/signup links) |

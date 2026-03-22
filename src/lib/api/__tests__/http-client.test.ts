@@ -1,16 +1,41 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setStoredUser, setTokens } from "@/lib/auth";
+import { createMockJwt } from "@/test/jwt";
+
 import { ApiError } from "../api-error";
 import { browserNavigation, httpClient } from "../http-client";
 
-const ACCESS_TOKEN_STORAGE_KEY = "expensify.auth.accessToken";
-
-function jsonResponse(body: unknown, init?: ResponseInit): Response {
+function jsonResponse(
+  body: unknown,
+  init?: ResponseInit,
+  contentType = "application/json",
+): Response {
   return new Response(JSON.stringify(body), {
     headers: {
-      "Content-Type": "application/problem+json",
+      "Content-Type": contentType,
     },
     ...init,
+  });
+}
+
+function createUserToken(subject: string) {
+  return createMockJwt({
+    email: `${subject}@example.com`,
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    firstName: "Morgan",
+    lastName: "Lee",
+    role: "User",
+    sub: subject,
+  });
+}
+
+function createBackendUserToken(email: string, userId: string) {
+  return createMockJwt({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    role: "User",
+    sub: email,
+    userid: userId,
   });
 }
 
@@ -83,17 +108,34 @@ describe("http-client", () => {
     );
 
     vi.stubGlobal("fetch", fetchMock);
-    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, "test-token");
+    setTokens(createUserToken("user-1"), "refresh-1");
 
     await httpClient.get("/profile");
 
-    const [, requestInit] = fetchMock.mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
-    const headers = requestInit.headers as Headers;
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(requestInit.headers);
 
-    expect(headers.get("Authorization")).toBe("Bearer test-token");
+    expect(headers.get("Authorization")).toMatch(/^Bearer /);
+  });
+
+  it("skips auth injection when auth mode is none", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ ok: true }, { status: 200 }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    setTokens(createUserToken("user-1"), "refresh-1");
+
+    await httpClient.post(
+      "/v1/users/login",
+      { email: "user@example.com" },
+      { auth: "none" },
+    );
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(requestInit.headers);
+
+    expect(headers.get("Authorization")).toBeNull();
   });
 
   it("serializes JSON request bodies and respects caller content type overrides", async () => {
@@ -117,7 +159,7 @@ describe("http-client", () => {
     );
 
     const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const headers = requestInit.headers as Headers;
+    const headers = new Headers(requestInit.headers);
 
     expect(requestInit.body).toBe(
       JSON.stringify({
@@ -163,6 +205,7 @@ describe("http-client", () => {
             title: "Expenses.NotFound",
           },
           { status: 404, statusText: "Not Found" },
+          "application/problem+json",
         ),
       ),
     );
@@ -172,6 +215,178 @@ describe("http-client", () => {
       detail: "Category not found.",
       message: "Category not found.",
       status: 404,
+    });
+  });
+
+  it("refreshes tokens after a 401 and retries the original request once", async () => {
+    const expiredToken = createUserToken("user-1");
+    const refreshedToken = createBackendUserToken("user-1@example.com", "user-1");
+
+    setTokens(expiredToken, "refresh-1");
+    setStoredUser({
+      email: "user-1@example.com",
+      firstName: "Morgan",
+      id: "user-1",
+      lastName: "Lee",
+      role: "User",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse(
+            {
+              detail: "Session expired.",
+              status: 401,
+              title: "Auth.Expired",
+            },
+            { status: 401, statusText: "Unauthorized" },
+            "application/problem+json",
+          ),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse(
+            {
+              refreshToken: "refresh-2",
+              token: refreshedToken,
+            },
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(jsonResponse({ ok: true }, { status: 200 })),
+    );
+
+    await expect(httpClient.get("/profile")).resolves.toEqual({ ok: true });
+
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    const refreshRequest = fetchMock.mock.calls[1] as [string, RequestInit];
+    const retriedRequest = fetchMock.mock.calls[2] as [string, RequestInit];
+
+    expect(refreshRequest[0]).toBe("https://api.example.com/root/v1/users/refresh");
+    expect(refreshRequest[1].body).toBe(
+      JSON.stringify({
+        refreshToken: "refresh-1",
+        token: expiredToken,
+      }),
+    );
+    expect(new Headers(retriedRequest[1].headers).get("Authorization")).toBe(
+      `Bearer ${refreshedToken}`,
+    );
+  });
+
+  it("deduplicates concurrent refresh requests", async () => {
+    const expiredToken = createUserToken("user-1");
+    const refreshedToken = createUserToken("user-2");
+    let refreshCalls = 0;
+
+    setTokens(expiredToken, "refresh-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const authHeader = new Headers(init?.headers).get("Authorization");
+
+        if (url.endsWith("/v1/users/refresh")) {
+          refreshCalls += 1;
+
+          return jsonResponse(
+            {
+              refreshToken: "refresh-2",
+              token: refreshedToken,
+            },
+            { status: 200 },
+          );
+        }
+
+        if (authHeader === `Bearer ${expiredToken}`) {
+          return jsonResponse(
+            {
+              detail: "Session expired.",
+              status: 401,
+              title: "Auth.Expired",
+            },
+            { status: 401, statusText: "Unauthorized" },
+            "application/problem+json",
+          );
+        }
+
+        return jsonResponse({ ok: true }, { status: 200 });
+      }),
+    );
+
+    await Promise.all([httpClient.get("/profile"), httpClient.get("/settings")]);
+
+    expect(refreshCalls).toBe(1);
+  });
+
+  it("clears auth state and redirects when refresh fails", async () => {
+    const expiredToken = createUserToken("user-1");
+
+    setTokens(expiredToken, "refresh-1");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse(
+            {
+              detail: "Session expired.",
+              status: 401,
+              title: "Auth.Expired",
+            },
+            { status: 401, statusText: "Unauthorized" },
+            "application/problem+json",
+          ),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse(
+            {
+              detail: "Refresh token expired.",
+              status: 401,
+              title: "Auth.RefreshExpired",
+            },
+            { status: 401, statusText: "Unauthorized" },
+            "application/problem+json",
+          ),
+        ),
+    );
+    const redirectSpy = vi
+      .spyOn(browserNavigation, "redirectToLogin")
+      .mockImplementation(() => undefined);
+
+    await expect(httpClient.get("/profile")).rejects.toBeInstanceOf(ApiError);
+
+    expect(redirectSpy).toHaveBeenCalledWith("session_expired");
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it("surfaces rate-limit responses with the retry-after delay", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          {
+            detail: "Slow down.",
+            status: 429,
+            title: "RateLimit.Exceeded",
+          },
+          {
+            headers: {
+              "Content-Type": "application/problem+json",
+              "Retry-After": "120",
+            },
+            status: 429,
+            statusText: "Too Many Requests",
+          },
+          "application/problem+json",
+        ),
+      ),
+    );
+
+    await expect(httpClient.get("/transactions")).rejects.toMatchObject({
+      message: "Too many requests. Please try again in 120 seconds.",
+      status: 429,
     });
   });
 
@@ -193,31 +408,6 @@ describe("http-client", () => {
       message: "Gateway timeout",
       status: 500,
     });
-  });
-
-  it("clears auth state and redirects on 401 responses", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        jsonResponse(
-          {
-            detail: "Session expired.",
-            status: 401,
-            title: "Auth.Expired",
-          },
-          { status: 401, statusText: "Unauthorized" },
-        ),
-      ),
-    );
-    const assignSpy = vi
-      .spyOn(browserNavigation, "redirectToLogin")
-      .mockImplementation(() => undefined);
-    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, "expired-token");
-
-    await expect(httpClient.get("/profile")).rejects.toBeInstanceOf(ApiError);
-
-    expect(window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)).toBeNull();
-    expect(assignSpy).toHaveBeenCalledTimes(1);
   });
 
   it("propagates fetch rejections for network failures", async () => {

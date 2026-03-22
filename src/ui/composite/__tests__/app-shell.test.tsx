@@ -1,15 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import { setMockPathname } from "@/test/next-navigation";
 import { render, screen } from "@/test/render";
 
 import { AppShell } from "../app-shell";
 
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
-}));
-
 describe("AppShell", () => {
   it("renders the shell chrome around page content", () => {
+    setMockPathname("/dashboard");
+
     render(
       <AppShell>
         <div>Ledger page placeholder</div>

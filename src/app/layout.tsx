@@ -1,5 +1,7 @@
 import { Inter, Manrope } from "next/font/google";
 
+import { QueryClientProvider } from "@/lib/api";
+import { AuthProvider } from "@/lib/auth";
 import { TooltipProvider } from "@/ui/base";
 
 import type { Metadata } from "next";
@@ -37,7 +39,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground min-h-screen antialiased">
-        <TooltipProvider>{children}</TooltipProvider>
+        <QueryClientProvider>
+          <AuthProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </AuthProvider>
+        </QueryClientProvider>
       </body>
     </html>
   );

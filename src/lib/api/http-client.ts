@@ -1,6 +1,15 @@
-import { clearAuthSession, getAccessToken } from "@/lib/auth/auth-store";
+import {
+  clearAuthSession,
+  decodeUser,
+  getRefreshToken,
+  getStoredUser,
+  getToken,
+  setStoredUser,
+  setTokens,
+} from "@/lib/auth/auth-store";
+import { refreshResponseSchema } from "@/lib/auth/types";
 
-import { normalizeApiError } from "./api-error";
+import { ApiError, normalizeApiError } from "./api-error";
 
 import type { ApiRequestOptions, ApiRequestParamValue } from "./types";
 
@@ -8,7 +17,22 @@ type HttpMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 
 type RequestBody = BodyInit | object | unknown[] | null | undefined;
 
+type RequestConfig = {
+  body?: RequestBody;
+  method: HttpMethod;
+  options: ApiRequestOptions;
+  path: string;
+};
+
+type ResponsePayload = {
+  parsedBody: unknown;
+  response: Response;
+};
+
 const DEFAULT_API_URL = "http://localhost:5000/api";
+const REFRESH_PATH = "/v1/users/refresh";
+
+let refreshPromise: Promise<string> | null = null;
 
 function getApiBaseUrl(): string {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_URL;
@@ -163,12 +187,19 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   }
 }
 
-function createHeaders(headers?: HeadersInit): Headers {
+function createHeaders(
+  headers?: HeadersInit,
+  authMode: ApiRequestOptions["auth"] = "auto",
+  tokenOverride?: string | null,
+): Headers {
   const requestHeaders = new Headers(headers);
-  const accessToken = getAccessToken();
 
-  if (accessToken && !requestHeaders.has("Authorization")) {
-    requestHeaders.set("Authorization", `Bearer ${accessToken}`);
+  if (authMode !== "none") {
+    const token = tokenOverride ?? getToken();
+
+    if (token && !requestHeaders.has("Authorization")) {
+      requestHeaders.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   return requestHeaders;
@@ -193,17 +224,196 @@ function serializeBody(
   return JSON.stringify(body);
 }
 
-export const browserNavigation = {
-  redirectToLogin(): void {
-    if (typeof window !== "undefined") {
-      window.location.assign("/login");
+function getRetryAfterMs(retryAfterHeader: string | null): number | null {
+  if (!retryAfterHeader) {
+    return null;
+  }
+
+  const retryAfterSeconds = Number(retryAfterHeader);
+
+  if (Number.isFinite(retryAfterSeconds)) {
+    return Math.max(0, retryAfterSeconds * 1000);
+  }
+
+  const retryAt = Date.parse(retryAfterHeader);
+
+  if (Number.isNaN(retryAt)) {
+    return null;
+  }
+
+  return Math.max(0, retryAt - Date.now());
+}
+
+function createRateLimitError(
+  error: ApiError,
+  retryAfterHeader: string | null,
+): ApiError {
+  const retryAfterMs = getRetryAfterMs(retryAfterHeader);
+  const retryAfterSeconds =
+    retryAfterMs === null ? null : Math.max(1, Math.ceil(retryAfterMs / 1000));
+  const message =
+    retryAfterSeconds === null
+      ? "Too many requests. Please try again shortly."
+      : `Too many requests. Please try again in ${retryAfterSeconds} second${retryAfterSeconds === 1 ? "" : "s"}.`;
+
+  return new ApiError({
+    code: error.code,
+    detail: message,
+    instance: error.instance,
+    message,
+    raw: error.raw,
+    status: error.status,
+    title: error.title,
+    type: error.type,
+    validationErrors: error.validationErrors,
+  });
+}
+
+async function sendRequest(
+  config: RequestConfig,
+  tokenOverride?: string | null,
+): Promise<ResponsePayload> {
+  const { cleanup, signal } = createAbortController(
+    config.options.signal,
+    config.options.timeout,
+  );
+  const headers = createHeaders(
+    config.options.headers,
+    config.options.auth,
+    tokenOverride,
+  );
+  const url = buildUrl(config.path, config.options.params);
+
+  try {
+    const response = await fetch(url, {
+      body: serializeBody(config.body, headers),
+      headers,
+      method: config.method,
+      signal,
+    });
+
+    return {
+      parsedBody: await parseResponseBody(response),
+      response,
+    };
+  } finally {
+    cleanup();
+  }
+}
+
+async function refreshTokens(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    const token = getToken();
+    const refreshToken = getRefreshToken();
+
+    if (!token || !refreshToken) {
+      throw new Error("Missing token pair for refresh.");
     }
+
+    const response = await fetch(buildUrl(REFRESH_PATH), {
+      body: JSON.stringify({ refreshToken, token }),
+      headers: createHeaders(
+        {
+          "Content-Type": "application/json",
+        },
+        "none",
+      ),
+      method: "POST",
+    });
+    const parsedBody = await parseResponseBody(response);
+
+    if (!response.ok) {
+      throw normalizeApiError(parsedBody, {
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
+
+    const refreshed = refreshResponseSchema.parse(parsedBody);
+    const refreshedUser = decodeUser(refreshed.token, getStoredUser());
+
+    setTokens(refreshed.token, refreshed.refreshToken);
+
+    if (refreshedUser) {
+      setStoredUser(refreshedUser);
+    }
+
+    return refreshed.token;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+export const browserNavigation = {
+  redirectToLogin(status?: string): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const target = new URL("/login", window.location.origin);
+
+    if (status) {
+      target.searchParams.set("status", status);
+    }
+
+    window.location.assign(`${target.pathname}${target.search}`);
   },
 };
 
-function handleUnauthorizedResponse(): void {
+function handleUnauthorizedResponse(status = "session_expired"): void {
   clearAuthSession();
-  browserNavigation.redirectToLogin();
+  browserNavigation.redirectToLogin(status);
+}
+
+async function executeRequest<T>(
+  config: RequestConfig,
+  tokenOverride?: string | null,
+): Promise<T> {
+  const { parsedBody, response } = await sendRequest(config, tokenOverride);
+
+  if (response.ok) {
+    return parsedBody as T;
+  }
+
+  let error = normalizeApiError(parsedBody, {
+    status: response.status,
+    statusText: response.statusText,
+  });
+
+  if (response.status === 429) {
+    error = createRateLimitError(error, response.headers.get("Retry-After"));
+  }
+
+  if (error.isUnauthorized() && config.options.auth !== "none") {
+    if (config.options.retryOnUnauthorized !== false) {
+      try {
+        const refreshedToken = await refreshTokens();
+
+        return await executeRequest<T>(
+          {
+            ...config,
+            options: {
+              ...config.options,
+              retryOnUnauthorized: false,
+            },
+          },
+          refreshedToken,
+        );
+      } catch {
+        handleUnauthorizedResponse();
+      }
+    } else {
+      handleUnauthorizedResponse();
+    }
+  }
+
+  throw error;
 }
 
 async function request<T>(
@@ -212,40 +422,16 @@ async function request<T>(
   body?: RequestBody,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { cleanup, signal } = createAbortController(
-    options.signal,
-    options.timeout,
-  );
-  const headers = createHeaders(options.headers);
-  const url = buildUrl(path, options.params);
-
-  try {
-    const response = await fetch(url, {
-      body: serializeBody(body, headers),
-      headers,
-      method,
-      signal,
-    });
-
-    const parsedBody = await parseResponseBody(response);
-
-    if (!response.ok) {
-      const error = normalizeApiError(parsedBody, {
-        status: response.status,
-        statusText: response.statusText,
-      });
-
-      if (error.isUnauthorized()) {
-        handleUnauthorizedResponse();
-      }
-
-      throw error;
-    }
-
-    return parsedBody as T;
-  } finally {
-    cleanup();
-  }
+  return executeRequest<T>({
+    body,
+    method,
+    options: {
+      auth: "auto",
+      retryOnUnauthorized: true,
+      ...options,
+    },
+    path,
+  });
 }
 
 export const httpClient = {
