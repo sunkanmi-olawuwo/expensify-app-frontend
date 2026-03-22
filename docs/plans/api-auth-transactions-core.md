@@ -1,4 +1,4 @@
-# Phase 2: API Client, Auth, Public Pages & Transactions Core
+# API Client, Auth, Public Pages & Transactions Core
 
 ## Summary
 
@@ -25,34 +25,40 @@
 Every component built in this phase must follow these cross-cutting rules from DESIGN.md. This section exists so the implementer has a single checklist rather than needing to re-derive rules from the design spec.
 
 ### Boundaries & Borders
+
 - **No-Line Rule**: Never use `1px solid` borders to section content. Boundaries come from background color shifts and tonal transitions only.
 - **Ghost Border Fallback**: When a border is needed for accessibility or selected states (e.g., payment method cards), use `outline-variant` at **15% opacity** (the `--ghost-border` token). This creates a "suggestion" of a container.
 - **Dashed borders**: Only for "add new" affordances (e.g., Quick Add Expense). This is the single exception.
 
 ### Surfaces & Elevation
+
 - **Nesting logic**: Place `surface-container-lowest` cards on `surface-container-low` sections for soft natural lift. Never place same-tier surfaces on each other.
 - **Glassmorphism**: All floating elements (modals, dropdowns, popovers, mobile sheet menus) use `surface` at 70% opacity + `20px` backdrop-blur.
 - **Ambient shadows**: Use `shadow-ambient-sm` / `shadow-ambient-md` / `shadow-ambient-lg` — never raw `box-shadow` with pure black. Shadow color is always tinted `on-surface` (dark blue-grey) at 4-8% opacity.
 - **Signature gradients**: Primary CTA buttons and hero backgrounds use `linear-gradient(135deg, var(--primary), var(--primary-container))` — never flat hex.
 
 ### Typography
+
 - **Manrope** (`font-display`): used for `display-lg` and `headline-md` only — high-impact headings and hero text.
 - **Inter** (`font-sans`): used for `title-lg`, `body-md`, `label-sm` — data, labels, body copy.
 - **All-caps `label-sm`**: for all eyebrow labels, metadata, column headers (e.g., "AVAILABLE CAPITAL", "DATE", "STATUS").
 - **Asymmetrical layout**: offset large headings with small labels to break the "centered default" — e.g., `display-lg` balance left with `label-sm` tag right.
 
 ### Inputs & Forms
+
 - **Base state**: `surface-container-low` background, `rounded-md`.
 - **Focus state**: transition to `surface-container-highest` background + ghost border ring (`primary` at 20% opacity).
 - **Labels**: `label-sm` positioned strictly **above** the field. Never use placeholder text as a label.
 - **Dropdowns**: trigger styled as input, floating menu uses glassmorphism, active/selected item uses `primary-fixed` tinted background.
 
 ### Buttons
+
 - **Primary**: gradient `primary` → `primary-container` at 135°, `on-primary` text, `rounded-lg`.
 - **Secondary**: `surface-container-high` background, `on-surface` text, no border.
 - **Tertiary/Ghost**: transparent, `on-surface` text, subtle `primary-fixed` glow on hover.
 
 ### Spacing & Rhythm
+
 - 4px base unit throughout.
 - `spacing-6` (1.5rem) for card internal padding.
 - `spacing-8` (2rem) for modal internal padding.
@@ -61,12 +67,14 @@ Every component built in this phase must follow these cross-cutting rules from D
 - Interactive targets: minimum `spacing-12` (3rem) height.
 
 ### Color Semantics
+
 - Income: `secondary` (forest green `#2D6A4F`) — only in typography or small indicators, never as large background blocks.
 - Expenses: `destructive` (soft red `#C44536`) — same rule, typography/indicators only.
 - Currency formatting: commas + two decimal places (e.g., "$142,850.00").
 - Never use pure black (`#000000`) for anything — text is `on-surface` (`#1A2340`), shadows are tinted.
 
 ### Iconography
+
 - Lucide icons with 1.5px stroke weight, rounded caps and joins.
 - Sizes: 20px inline, 24px navigation, 32px feature cards.
 - Category icons: rendered inside a tinted circular container — container uses the category's token color at 10% opacity, icon in full token color.
@@ -78,6 +86,7 @@ Every component built in this phase must follow these cross-cutting rules from D
 **Step 1.1** — Install dependencies: `zod`, `@tanstack/react-query`.
 
 **Step 1.2** — Create `src/lib/api/http-client.ts`:
+
 - Thin wrapper around `fetch` with typed generics
 - Base URL from `NEXT_PUBLIC_API_URL` env var (defaults to `http://localhost:5000/api`)
 - Methods: `get<T>()`, `post<T>()`, `put<T>()`, `patch<T>()`, `delete<T>()`
@@ -90,6 +99,7 @@ Every component built in this phase must follow these cross-cutting rules from D
 - 401 response interceptor — clears auth state, redirects to `/login`
 
 **Step 1.3** — Create `src/lib/api/api-error.ts`:
+
 - `ApiError` class extending `Error`
 - Properties: `status`, `code`, `title`, `detail`, `validationErrors` (keyed by field name)
 - Parses .NET `ProblemDetails` (`{ type, title, status, detail, errors }`) and `ValidationProblemDetails` (`{ errors: { field: string[] } }`)
@@ -97,11 +107,13 @@ Every component built in this phase must follow these cross-cutting rules from D
 - Convenience checks: `isNotFound()`, `isUnauthorized()`, `isForbidden()`, `isValidationError()`, `isConflict()`
 
 **Step 1.4** — Create `src/lib/api/types.ts`:
+
 - `PaginatedResponse<T>` — `{ items: T[]; page: number; pageSize: number; totalCount: number; totalPages: number }`
 - `ApiRequestOptions` — `{ params?, signal?, timeout?, headers? }`
 - `ProblemDetails` type matching RFC 7807
 
 **Step 1.5** — Create `src/lib/api/query-client.tsx`:
+
 - `QueryClientProvider` wrapper component with default options:
   - `staleTime: 30_000` (30s)
   - `retry: 1` for queries, `retry: 0` for mutations
@@ -112,44 +124,10 @@ Every component built in this phase must follow these cross-cutting rules from D
 
 ---
 
-## Phase 2: Auth State & Token Management (`src/lib/auth/`)
+## Phase 2: Public Pages (`src/app/(public)/`)
 
-**Step 2.1** — Create `src/lib/auth/types.ts`:
-- `User` — `{ id, email, name, currency, timezone, monthStartDay }`
-- `LoginRequest` — `{ email, password }`
-- `LoginResponse` — `{ accessToken, refreshToken, user }`
-- `SignupRequest` — `{ name, email, password }`
-- `SignupResponse` — same shape as `LoginResponse`
-- `UpdateProfileRequest` — `{ name, currency, timezone, monthStartDay }`
-- `ChangePasswordRequest` — `{ currentPassword, newPassword }`
-- `AuthState` — `{ user: User | null; isAuthenticated: boolean; isLoading: boolean }`
+**Step 2.1** — Create public shell components in `src/ui/composite/`:
 
-**Step 2.2** — Create `src/lib/auth/auth-store.ts`:
-- Token storage using `localStorage` with an in-memory fallback for SSR
-- `getAccessToken()`, `getRefreshToken()`, `setTokens(access, refresh)`, `clearTokens()`
-- `isTokenExpired(token)` — decode JWT `exp` claim via base64 (no library needed)
-- `getStoredUser()`, `setStoredUser(user)`, `clearStoredUser()`
-
-**Step 2.3** — Create `src/lib/auth/auth-context.tsx`:
-- `AuthProvider` component wrapping React context
-- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `signup(name, email, password)`, `logout()`, `updateUser(user)`
-- On mount: hydrates from stored token/user, validates token expiry
-- `login()` / `signup()` — call API, store tokens, set user state
-- `logout()` — clear tokens, clear user, redirect to `/login`
-
-**Step 2.4** — Create `src/lib/auth/auth-guard.tsx`:
-- Client component wrapping protected content
-- If `isLoading` → render a full-page loading state: centered "expensify" wordmark in `headline-md` `muted-foreground` with a subtle pulse animation on `surface` background — keeps the editorial feel during auth hydration rather than showing a generic spinner
-- If `!isAuthenticated` → redirect to `/login` via `useRouter`
-- Otherwise → render `children`
-
-**Step 2.5** — Create `src/lib/auth/index.ts` — barrel export.
-
----
-
-## Phase 3: Public Pages (`src/app/(public)/`)
-
-**Step 3.1** — Create public shell components in `src/ui/composite/`:
 - `public-navbar.tsx` — horizontal top bar for unauthenticated pages:
   - Left: "expensify" brand wordmark in `font-display` (Manrope) at `title-lg` weight — links to `/`
   - Right: "Log In" tertiary/ghost button (`on-surface` text, subtle `primary-fixed` glow on hover), "Get Started" primary button (gradient `primary` → `primary-container` at 135°, `on-primary` text, `rounded-lg`)
@@ -164,14 +142,16 @@ Every component built in this phase must follow these cross-cutting rules from D
   - No top border — tonal shift separation only ("No-Line" rule)
   - Links are interactive targets at least `spacing-12` (3rem) height per spacing spec
 
-**Step 3.2** — Create `src/app/(public)/layout.tsx`:
+**Step 2.2** — Create `src/app/(public)/layout.tsx`:
+
 - Renders `PublicNavbar` at top, `{children}` in centered content area, `PublicFooter` at bottom
 - No sidebar, no auth guard
 - `min-h-screen` flex column layout so footer stays at bottom
 - `bg-editorial-grid` on the body background (the radial gradient wash already in globals.css) — gives the public pages the same editorial texture as the workspace
 - Content area: `max-w-6xl mx-auto` for comfortable reading width with generous side padding
 
-**Step 3.3** — Create `src/features/auth/` module:
+**Step 2.3** — Create `src/features/auth/` module:
+
 - `types/index.ts` — form state types, validation helpers
 - `components/auth-form-card.tsx` — shared card wrapper for auth forms:
   - `surface` background, `rounded-xl` shape, `shadow-ambient-md` for editorial floating lift
@@ -193,11 +173,13 @@ Every component built in this phase must follow these cross-cutting rules from D
   - "Already have an account? Log in" link in same style as login screen
 - `index.ts` — barrel export
 
-**Step 3.4** — Create route files:
+**Step 2.4** — Create route files:
+
 - `src/app/(public)/login/page.tsx` → renders `LoginScreen`
 - `src/app/(public)/signup/page.tsx` → renders `SignupScreen`
 
-**Step 3.5** — Create `src/features/home/` module:
+**Step 2.5** — Create `src/features/home/` module:
+
 - `screens/home-screen.tsx` — editorial landing page:
   - Hero section: "expensify" in `display-lg` (Manrope, 3.5rem) left-aligned or slightly offset (asymmetrical layout per Do's), subtitle tagline in `body-md` `muted-foreground` — e.g., "Your monthly financial narrative, not a spreadsheet."
   - CTA row: "Get Started" primary gradient button → `/signup`, "Log In" ghost/tertiary button → `/login`, with `spacing-4` gap between them
@@ -206,17 +188,58 @@ Every component built in this phase must follow these cross-cutting rules from D
   - Background: inherits the `bg-editorial-grid` radial wash from the layout — gives the premium, textured feel
 - `index.ts`
 
-**Step 3.6** — Update `src/app/page.tsx`:
+**Step 2.6** — Update `src/app/page.tsx`:
+
 - Render the home screen instead of redirecting to `/dashboard`
 - Authenticated users visiting `/` can still navigate to `/dashboard` via the CTA or nav
 
-**Step 3.7** — Update `src/ui/composite/index.ts` — add `PublicNavbar` and `PublicFooter` to barrel export.
+**Step 2.7** — Update `src/ui/composite/index.ts` — add `PublicNavbar` and `PublicFooter` to barrel export.
+
+---
+
+## Phase 3: Auth State & Token Management (`src/lib/auth/`)
+
+**Step 3.1** — Create `src/lib/auth/types.ts`:
+
+- `User` — `{ id, email, name, currency, timezone, monthStartDay }`
+- `LoginRequest` — `{ email, password }`
+- `LoginResponse` — `{ accessToken, refreshToken, user }`
+- `SignupRequest` — `{ name, email, password }`
+- `SignupResponse` — same shape as `LoginResponse`
+- `UpdateProfileRequest` — `{ name, currency, timezone, monthStartDay }`
+- `ChangePasswordRequest` — `{ currentPassword, newPassword }`
+- `AuthState` — `{ user: User | null; isAuthenticated: boolean; isLoading: boolean }`
+
+**Step 3.2** — Create `src/lib/auth/auth-store.ts`:
+
+- Token storage using `localStorage` with an in-memory fallback for SSR
+- `getAccessToken()`, `getRefreshToken()`, `setTokens(access, refresh)`, `clearTokens()`
+- `isTokenExpired(token)` — decode JWT `exp` claim via base64 (no library needed)
+- `getStoredUser()`, `setStoredUser(user)`, `clearStoredUser()`
+
+**Step 3.3** — Create `src/lib/auth/auth-context.tsx`:
+
+- `AuthProvider` component wrapping React context
+- Provides: `user`, `isAuthenticated`, `isLoading`, `login(email, password)`, `signup(name, email, password)`, `logout()`, `updateUser(user)`
+- On mount: hydrates from stored token/user, validates token expiry
+- `login()` / `signup()` — call API, store tokens, set user state
+- `logout()` — clear tokens, clear user, redirect to `/login`
+
+**Step 3.4** — Create `src/lib/auth/auth-guard.tsx`:
+
+- Client component wrapping protected content
+- If `isLoading` → render a full-page loading state: centered "expensify" wordmark in `headline-md` `muted-foreground` with a subtle pulse animation on `surface` background — keeps the editorial feel during auth hydration rather than showing a generic spinner
+- If `!isAuthenticated` → redirect to `/login` via `useRouter`
+- Otherwise → render `children`
+
+**Step 3.5** — Create `src/lib/auth/index.ts` — barrel export.
 
 ---
 
 ## Phase 4: Profile Management
 
 **Step 4.1** — Create `src/features/profile/` module:
+
 - `types/index.ts` — form state types
 - `components/profile-form.tsx`:
   - Wrapped in `SurfaceCard` (existing composite component) — `surface-container-low` background, `rounded-xl`, no border
@@ -240,10 +263,12 @@ Every component built in this phase must follow these cross-cutting rules from D
 **Step 4.2** — Create route `src/app/(workspace)/profile/page.tsx`.
 
 **Step 4.3** — Update `src/lib/app-shell.ts`:
+
 - Add `/profile` to `AppRoute` type
 - Add `PageChrome` entry for `/profile`
 
 **Step 4.4** — Update `src/ui/composite/top-bar.tsx`:
+
 - Wire user avatar click to navigate to `/profile`
 
 ---
@@ -251,6 +276,7 @@ Every component built in this phase must follow these cross-cutting rules from D
 ## Phase 5: Transactions Feature — API + Real UI (Epic A)
 
 **Step 5.1** — Create `src/features/transactions/api/`:
+
 - `schemas.ts` — Zod schemas for `Transaction`, `TransactionFilters`, `CreateTransactionRequest`, `UpdateTransactionRequest`
 - `transactions-api.ts` — typed API service functions using `httpClient`:
   - `getTransactions(filters): Promise<PaginatedResponse<Transaction>>`
@@ -260,6 +286,7 @@ Every component built in this phase must follow these cross-cutting rules from D
   - `deleteTransaction(id): Promise<void>`
 
 **Step 5.2** — Update `src/features/transactions/types/index.ts` — replace placeholder types with real domain types from the PRD:
+
 ```
 Transaction {
   id, userId, type ('expense' | 'income'),
@@ -277,6 +304,7 @@ TransactionFilters {
 ```
 
 **Step 5.3** — Create `src/features/transactions/hooks/`:
+
 - `query-keys.ts` — centralized query key factory: `transactionKeys.all`, `.list(filters)`, `.detail(id)`
 - `use-transactions.ts` — `useQuery` wrapping `getTransactions(filters)`, returns `{ data, isLoading, isError, error }`
 - `use-transaction.ts` — `useQuery` wrapping `getTransaction(id)` for detail view
@@ -328,9 +356,11 @@ TransactionFilters {
 ## Phase 6: Provider Wiring & Route Protection
 
 **Step 6.1** — Update `src/app/layout.tsx`:
+
 - Add `AuthProvider` and `QueryClientProvider` to the provider tree (wrap around `TooltipProvider`)
 
 **Step 6.2** — Create `src/ui/composite/workspace-footer.tsx`:
+
 - Compact footer rendered below the main content area (inside the content column, not spanning the sidebar)
 - Left: "© 2026 expensify" in `label-sm` (all-caps, `muted-foreground`)
 - Right: "Help", "Privacy", "Terms" links in `body-md` `muted-foreground`, hover transitions to `foreground`
@@ -341,18 +371,22 @@ TransactionFilters {
 - `spacing-6` internal padding
 
 **Step 6.3** — Update `src/ui/composite/app-shell.tsx`:
+
 - Add `WorkspaceFooter` below the `{children}` content area
 - Ensure the content column is a flex column with `min-h-screen` so the footer pushes to the bottom
 
 **Step 6.4** — Update `src/app/(workspace)/layout.tsx`:
+
 - Wrap `AppShell` with `AuthGuard`
 
 **Step 6.5** — Update `src/ui/composite/index.ts` — add `WorkspaceFooter` to barrel export.
 
 **Step 6.6** — Update `src/test/render.tsx`:
+
 - Add `QueryClientProvider` (with a fresh `QueryClient` per test) and `AuthProvider` to `TestProviders`
 
 **Step 6.7** — Add new shadcn primitives as needed and wrap through `src/ui/base/`:
+
 - `dialog` — for transaction modal
 - `select` — for dropdowns (category, payment method, currency, timezone)
 - `dropdown-menu` — for user avatar menu
@@ -365,6 +399,7 @@ TransactionFilters {
 ## Phase 7: Environment & Config
 
 **Step 7.1** — Create `.env.example`:
+
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
@@ -372,8 +407,10 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api
 **Step 7.2** — Verify `.gitignore` covers `.env.local`, `.env.*.local`.
 
 **Step 7.3** — Update `next.config.ts`:
+
 - Document CORS expectations (the .NET API should allow the frontend origin)
 - Optionally add `rewrites` for API proxying in development to avoid CORS during local dev:
+
 ```ts
 async rewrites() {
   return [
@@ -387,6 +424,7 @@ async rewrites() {
 ## Phase 8: Tests
 
 **Step 8.1** — Unit: `src/lib/api/__tests__/http-client.test.ts`:
+
 - Builds correct URLs with base + path + query params
 - Sets `Authorization` header when token is present
 - Parses JSON responses
@@ -395,17 +433,20 @@ async rewrites() {
 - Respects abort signals
 
 **Step 8.2** — Unit: `src/lib/api/__tests__/api-error.test.ts`:
+
 - Parses `ProblemDetails` format
 - Parses `ValidationProblemDetails` with field errors
 - Type guard works correctly
 - Convenience methods (`isNotFound`, etc.) return correct values
 
 **Step 8.3** — Unit: `src/lib/auth/__tests__/auth-store.test.ts`:
+
 - Stores and retrieves tokens
 - Detects expired tokens
 - Clears all auth data on `clearTokens()`
 
 **Step 8.4** — Integration: `src/features/auth/__tests__/login-screen.test.tsx`:
+
 - Renders email and password fields
 - Shows validation errors for empty fields
 - Calls login API on submit with correct payload
@@ -413,17 +454,20 @@ async rewrites() {
 - Redirects on successful login
 
 **Step 8.5** — Integration: `src/features/auth/__tests__/signup-screen.test.tsx`:
+
 - Renders all fields (name, email, password, confirm)
 - Validates password match
 - Calls signup API on submit
 
 **Step 8.6** — Integration: `src/features/transactions/__tests__/transactions-screen.test.tsx`:
+
 - Upgrade existing placeholder test
 - Renders loading state
 - Renders transaction rows from mocked query data
 - Filter controls update query parameters
 
 **Step 8.7** — E2E: update `e2e/smoke.spec.ts`:
+
 - Unauthenticated visit to `/dashboard` redirects to `/login`
 - Home page renders with CTA buttons
 - Login page renders form
@@ -452,23 +496,23 @@ async rewrites() {
 
 ## Dependencies Added
 
-| Package | Purpose |
-|---|---|
-| `zod` | Runtime API response validation at the network boundary |
+| Package                 | Purpose                                                              |
+| ----------------------- | -------------------------------------------------------------------- |
+| `zod`                   | Runtime API response validation at the network boundary              |
 | `@tanstack/react-query` | Server-state management — caching, refetch, mutations, deduplication |
 
 ## Critical Files
 
-| File | Purpose |
-|---|---|
-| `src/lib/api/http-client.ts` | Central typed HTTP client for all .NET API communication |
-| `src/lib/api/api-error.ts` | Error normalization for .NET ProblemDetails |
-| `src/lib/api/query-client.tsx` | TanStack Query provider and default config |
-| `src/lib/auth/auth-context.tsx` | Auth state provider (login, logout, user) |
-| `src/lib/auth/auth-guard.tsx` | Route protection for workspace pages |
-| `src/ui/composite/public-navbar.tsx` | Top navigation for public pages (brand, login/signup links) |
-| `src/ui/composite/public-footer.tsx` | Footer for public pages (copyright, legal links) |
-| `src/ui/composite/workspace-footer.tsx` | Footer for workspace pages (compact, inside content area) |
-| `src/app/(public)/layout.tsx` | Public layout — navbar + content + footer, no sidebar |
-| `src/features/transactions/api/transactions-api.ts` | Typed transaction CRUD service |
-| `src/features/transactions/hooks/use-transactions.ts` | TanStack Query hook for transaction list |
+| File                                                  | Purpose                                                     |
+| ----------------------------------------------------- | ----------------------------------------------------------- |
+| `src/lib/api/http-client.ts`                          | Central typed HTTP client for all .NET API communication    |
+| `src/lib/api/api-error.ts`                            | Error normalization for .NET ProblemDetails                 |
+| `src/lib/api/query-client.tsx`                        | TanStack Query provider and default config                  |
+| `src/lib/auth/auth-context.tsx`                       | Auth state provider (login, logout, user)                   |
+| `src/lib/auth/auth-guard.tsx`                         | Route protection for workspace pages                        |
+| `src/ui/composite/public-navbar.tsx`                  | Top navigation for public pages (brand, login/signup links) |
+| `src/ui/composite/public-footer.tsx`                  | Footer for public pages (copyright, legal links)            |
+| `src/ui/composite/workspace-footer.tsx`               | Footer for workspace pages (compact, inside content area)   |
+| `src/app/(public)/layout.tsx`                         | Public layout — navbar + content + footer, no sidebar       |
+| `src/features/transactions/api/transactions-api.ts`   | Typed transaction CRUD service                              |
+| `src/features/transactions/hooks/use-transactions.ts` | TanStack Query hook for transaction list                    |
