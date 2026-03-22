@@ -12,11 +12,11 @@ export function TransactionsFilterBar() {
       title="History controls"
       tone="subtle"
     >
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {transactionFilters.map((filter) => (
           <div
             key={filter.label}
-            className="shadow-ambient-sm min-w-44 rounded-full bg-white px-4 py-3"
+            className="shadow-ambient-sm min-w-0 rounded-full bg-white px-4 py-3 sm:min-w-44"
           >
             <p className="text-label-sm text-muted-foreground">
               {filter.label}
@@ -24,7 +24,10 @@ export function TransactionsFilterBar() {
             <p className="text-body-md text-foreground mt-1">{filter.value}</p>
           </div>
         ))}
-        <Button className="ml-auto rounded-full" variant="ghost">
+        <Button
+          className="w-full rounded-full sm:ml-auto sm:w-auto"
+          variant="ghost"
+        >
           Clear all filters
         </Button>
       </div>

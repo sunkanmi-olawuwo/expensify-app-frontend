@@ -3,5 +3,7 @@ export * from "./app-sidebar";
 export * from "./metric-card";
 export * from "./page-header";
 export * from "./placeholder-chart";
+export * from "./public-footer";
+export * from "./public-navbar";
 export * from "./surface-card";
 export * from "./top-bar";

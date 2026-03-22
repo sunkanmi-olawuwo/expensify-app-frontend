@@ -10,7 +10,50 @@ export function TransactionsTable() {
       eyebrow="Ledger Table"
       title="Transaction history"
     >
-      <div className="overflow-x-auto">
+      <div className="space-y-4 md:hidden">
+        {transactionRows.map((row) => (
+          <article
+            key={`${row.description}-${row.date}-mobile`}
+            className="bg-surface-container-low rounded-[calc(var(--radius-shell)-0.55rem)] p-4"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 space-y-1">
+                <p className="text-body-md text-foreground font-semibold">
+                  {row.description}
+                </p>
+                <p className="text-body-md text-muted-foreground">
+                  {row.category}
+                </p>
+              </div>
+              <span
+                className={
+                  row.amount.startsWith("+")
+                    ? "text-title-lg text-secondary"
+                    : "text-title-lg text-destructive"
+                }
+              >
+                {row.amount}
+              </span>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-label-sm text-muted-foreground">{row.date}</p>
+              <span
+                className={cn(
+                  "text-label-sm inline-flex rounded-full px-3 py-1",
+                  row.status === "Completed"
+                    ? "bg-secondary/12 text-secondary"
+                    : "bg-surface-container-high text-foreground",
+                )}
+              >
+                {row.status}
+              </span>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="min-w-full border-separate border-spacing-y-3">
           <thead>
             <tr className="text-label-sm text-muted-foreground text-left">
