@@ -4,8 +4,8 @@ import { LifeBuoy, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { useAuth } from "@/lib/auth";
 import { primaryNavItems } from "@/lib/app-shell";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 type AppSidebarProps = {
