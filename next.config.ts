@@ -1,7 +1,13 @@
+import { fileURLToPath } from "node:url";
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: ["127.0.0.1"],
+  typedRoutes: true,
+  turbopack: {
+    root: fileURLToPath(new URL(".", import.meta.url)),
+  },
 };
 
 export default nextConfig;

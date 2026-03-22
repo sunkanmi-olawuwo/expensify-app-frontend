@@ -1,12 +1,14 @@
-# Bootstrap the Expensify Frontend Foundation
+# Bootstrap the expensify Frontend Foundation
 
 ## Summary
+
 - Bootstrap the empty repo into a `pnpm`-managed Next.js App Router app using `src/`, strict TypeScript, Tailwind, and the latest stable framework and dependency releases verified at implementation time.
 - Keep this pass strictly foundational: shared app shell, feature route placeholders, theme tokens, component ownership rules, and test/tooling scaffolding. Do not build product CRUD, auth, CSV import, or AI data wiring yet.
 - Align the initial shell to the docs: `/dashboard`, `/transactions`, `/analytics`, `/settings`, and a real `/chat` route that is intentionally omitted from primary navigation until design catches up.
 - Treat the design samples as visual inspiration during page design: [dashboard.png](/C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/docs/design/samples/dashboard.png) for dashboard composition, [transaction_history.png](/C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/docs/design/samples/transaction_history.png) for transactions, [analytics.png](/C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/docs/design/samples/analytics.png) for analytics, and [log_transaction.png](/C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/docs/design/samples/log_transaction.png) for transaction-entry flows.
 
 ## Key Technical Decisions
+
 - Drop `exactOptionalPropertyTypes` — breaks React/Next.js type definitions. Defer to a future strictness pass.
 - Use temp-directory strategy for `create-next-app` since the repo root already has files (`docs/`, `.gitignore`, `README.md`).
 - Use `eslint-plugin-import-x` instead of `eslint-plugin-import` (flat config compatibility).
@@ -41,22 +43,22 @@
 
 **Step 3.2** — Replace default `globals.css` with design token foundation (CSS custom properties):
 
-| Token | Approx Value | Source |
-|-------|-------------|--------|
-| `--primary` | `#1B2B5B` | Deep navy from hero card |
-| `--primary-container` | `#2A3F7A` | Lighter navy gradient end |
-| `--primary-fixed` | `#6B7EC2` | Muted blue secondary |
-| `--secondary` | `#2D6A4F` | Forest green (income) |
-| `--error` | `#C44536` | Soft red (expenses) |
-| `--surface` | `#FFFFFF` | Base white |
-| `--surface-container-low` | `#F5F6FA` | Card backgrounds |
-| `--surface-container` | `#ECEEF5` | Mid-tier |
-| `--surface-container-high` | `#E2E5EF` | Elevated |
-| `--surface-container-highest` | `#D8DCE8` | Top tier |
-| `--surface-bright` | `#FAFBFF` | Peak highlights |
-| `--on-surface` | `#1A2340` | Text color |
-| `--on-primary` | `#FFFFFF` | Text on primary |
-| `--outline-variant` | `#C4C8D4` | Ghost borders |
+| Token                         | Approx Value | Source                    |
+| ----------------------------- | ------------ | ------------------------- |
+| `--primary`                   | `#1B2B5B`    | Deep navy from hero card  |
+| `--primary-container`         | `#2A3F7A`    | Lighter navy gradient end |
+| `--primary-fixed`             | `#6B7EC2`    | Muted blue secondary      |
+| `--secondary`                 | `#2D6A4F`    | Forest green (income)     |
+| `--error`                     | `#C44536`    | Soft red (expenses)       |
+| `--surface`                   | `#FFFFFF`    | Base white                |
+| `--surface-container-low`     | `#F5F6FA`    | Card backgrounds          |
+| `--surface-container`         | `#ECEEF5`    | Mid-tier                  |
+| `--surface-container-high`    | `#E2E5EF`    | Elevated                  |
+| `--surface-container-highest` | `#D8DCE8`    | Top tier                  |
+| `--surface-bright`            | `#FAFBFF`    | Peak highlights           |
+| `--on-surface`                | `#1A2340`    | Text color                |
+| `--on-primary`                | `#FFFFFF`    | Text on primary           |
+| `--outline-variant`           | `#C4C8D4`    | Ghost borders             |
 
 Plus typography scale tokens, shadow tokens (`ambient-sm`/`ambient-md`/`ambient-lg` at 24-40px blur, 4-8% opacity, tinted `on-surface`), radius tokens, and shadcn-compatible semantic aliases (`--background`, `--foreground`, `--card`, `--muted`, `--accent`, `--destructive`, `--border`, `--ring`, etc.).
 
@@ -73,7 +75,8 @@ Plus typography scale tokens, shadow tokens (`ambient-sm`/`ambient-md`/`ambient-
 **Step 5.1** — Create `src/ui/base/` wrappers — thin re-exports for each shadcn primitive. Barrel export at `src/ui/base/index.ts`.
 
 **Step 5.2** — Create `src/ui/composite/` shell components:
-- `app-sidebar.tsx` — Fixed 200px sidebar: brand mark ("Financial Atelier" / "Premium Management"), nav items (Dashboard, Transactions, Analytics, Settings with icons), Upgrade to Pro CTA card pinned to bottom, Support/Logout links. Active state via primary color pill.
+
+- `app-sidebar.tsx` — Fixed 200px sidebar: brand mark ("expensify" with a concise personal finance subtitle), nav items (Dashboard, Transactions, Analytics, Settings with icons), Upgrade to Pro CTA card pinned to bottom, Support/Logout links. Active state via primary color pill.
 - `top-bar.tsx` — Spans content area. Search input (contextual placeholder), notification bell (with badge dot), help icon, "+ Add New" primary button, user avatar.
 - `app-shell.tsx` — Combines sidebar + top bar + `{children}`. Sidebar fixed left, content area right with top bar above scrollable content.
 - `page-header.tsx` — Reusable page title/subtitle component.
@@ -85,6 +88,7 @@ Plus typography scale tokens, shadow tokens (`ambient-sm`/`ambient-md`/`ambient-
 **Step 6.1** — Create `src/app/(workspace)/layout.tsx` — server component rendering `AppShell` around `{children}`. This is the central layout file for all workspace routes.
 
 **Step 6.2** — Scaffold feature modules with `screens/`, `components/`, `types/`, `__tests__/`, `index.ts`:
+
 - `src/features/dashboard/` — placeholder hero card, allocation section, recent ledger
 - `src/features/transactions/` — placeholder filter bar and table structure
 - `src/features/analytics/` — chart placeholders with spending breakdown
@@ -92,6 +96,7 @@ Plus typography scale tokens, shadow tokens (`ambient-sm`/`ambient-md`/`ambient-
 - `src/features/chat/` — chat interface placeholder
 
 **Step 6.3** — Create thin route files importing feature screens:
+
 ```
 src/app/(workspace)/dashboard/page.tsx
 src/app/(workspace)/transactions/page.tsx
@@ -99,6 +104,7 @@ src/app/(workspace)/analytics/page.tsx
 src/app/(workspace)/settings/page.tsx
 src/app/(workspace)/chat/page.tsx
 ```
+
 Each is a server component that imports and renders the corresponding feature screen. May set page metadata (title).
 
 **Step 6.4** — `src/app/page.tsx` uses `redirect("/dashboard")` from `next/navigation` (server-side redirect, no client flash).
@@ -110,6 +116,7 @@ Each is a server component that imports and renders the corresponding feature sc
 **Step 7.1** — Install: `eslint-plugin-import-x`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`, `eslint-import-resolver-typescript`, `eslint-plugin-testing-library`, `eslint-plugin-jest-dom`.
 
 **Step 7.2** — Create `eslint.config.mjs` (flat config):
+
 - Next.js + TypeScript strict rules
 - Import ordering (builtin → external → internal `@/` → parent → sibling)
 - **Restricted imports**: forbid `@/ui/internal/shadcn/*` outside `src/ui/base/` — enforces ownership boundary
@@ -158,6 +165,7 @@ Each is a server component that imports and renders the corresponding feature sc
 ```bash
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
+
 Then `pnpm test:e2e` for smoke coverage.
 
 Verify `.gitignore` covers: `node_modules/`, `.next/`, `out/`, `coverage/`, `test-results/`, `playwright-report/`, `.env*`, `*.tsbuildinfo`, `next-env.d.ts`.
@@ -165,11 +173,13 @@ Verify `.gitignore` covers: `node_modules/`, `.next/`, `out/`, `coverage/`, `tes
 ---
 
 ## Public Interfaces and Contracts
+
 - Stable import surfaces: `@/ui/base/*`, `@/ui/composite/*`, `@/features/*`, `@/lib/*`.
 - Route surface: `/dashboard`, `/transactions`, `/analytics`, `/settings`, `/chat`, with `/` redirecting to `/dashboard`.
 - Quality gates: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`.
 
 ## Assumptions and Defaults
+
 - Package manager is `pnpm`.
 - `/chat` exists as a route and feature module but is hidden from primary navigation.
 - This bootstrap adds only the minimal shadcn primitive set needed for the shell; more wrappers are added as real features require them.
@@ -179,13 +189,13 @@ Verify `.gitignore` covers: `node_modules/`, `.next/`, `out/`, `coverage/`, `tes
 
 ## Critical Files
 
-| File | Purpose |
-|------|---------|
-| `docs/design/DESIGN.md` | Design token source of truth |
-| `docs/product/product-review-document.md` | PRD defining routes and features |
-| `src/app/(workspace)/layout.tsx` | Central shell layout (most important new file) |
-| `src/app/globals.css` | All CSS custom properties / design tokens |
-| `tailwind.config.ts` | Semantic utilities mapping |
-| `src/ui/composite/app-shell.tsx` | Sidebar + top bar + content composition |
-| `components.json` | shadcn path configuration |
-| `eslint.config.mjs` | Import boundary enforcement |
+| File                                      | Purpose                                        |
+| ----------------------------------------- | ---------------------------------------------- |
+| `docs/design/DESIGN.md`                   | Design token source of truth                   |
+| `docs/product/product-review-document.md` | PRD defining routes and features               |
+| `src/app/(workspace)/layout.tsx`          | Central shell layout (most important new file) |
+| `src/app/globals.css`                     | All CSS custom properties / design tokens      |
+| `tailwind.config.ts`                      | Semantic utilities mapping                     |
+| `src/ui/composite/app-shell.tsx`          | Sidebar + top bar + content composition        |
+| `components.json`                         | shadcn path configuration                      |
+| `eslint.config.mjs`                       | Import boundary enforcement                    |

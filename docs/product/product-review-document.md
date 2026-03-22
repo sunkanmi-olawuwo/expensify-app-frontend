@@ -1,8 +1,10 @@
 # Product Requirements Document (PRD)
+
 ## Personal Finance Tracker with Monthly Expenses, Income, Recurring Subscriptions, and AI Chat
 
 ## 1) Document Metadata
-- **Product name:** Expensify
+
+- **Product name:** expensify
 - **Version:** v1.1 (MVP)
 - **Last updated:** 2026-02-25
 - **Status:** Draft for implementation
@@ -11,6 +13,7 @@
 ---
 
 ## 2) Problem Statement
+
 Users need a simple way to track monthly expenses and income, automatically carry forward recurring subscriptions each month, and ask AI questions about their financial status.
 
 Current alternatives (manual spreadsheets, disconnected apps) are slow and difficult to query in natural language.
@@ -20,6 +23,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ## 3) Product Goals and Non-Goals
 
 ### Goals (MVP)
+
 1. Track **expenses per month** with clean CRUD flows.
 2. Track **income per month** with source/type labeling.
 3. Support **recurring monthly subscriptions** and let users import them into a selected month.
@@ -27,6 +31,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 5. Provide monthly insights and summaries (cash flow, top spend categories, anomalies).
 
 ### Non-Goals (MVP)
+
 - Budget setup, budget limits, or budget alerts.
 - Bank integrations (Plaid/Yodlee).
 - Tax filing workflows.
@@ -35,6 +40,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ---
 
 ## 4) Target Users
+
 1. **Working professionals** who want monthly cash flow visibility.
 2. **Freelancers** who need variable income tracking month-to-month.
 3. **Subscription-heavy users** who need recurring charges imported each month without manual re-entry.
@@ -42,6 +48,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ---
 
 ## 5) Core User Stories
+
 1. As a user, I can create, edit, delete, and view expense records.
 2. As a user, I can create, edit, delete, and view income records.
 3. As a user, I can define recurring monthly subscriptions.
@@ -55,21 +62,25 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ## 6) Functional Requirements
 
 ### 6.1 Authentication & User Settings
+
 - Email/password authentication.
 - Session/JWT support.
 - User preferences: currency, timezone, month start day.
 
 ### 6.2 Expense Management
+
 - Expense fields: `id`, `userId`, `amount`, `currency`, `date`, `category`, `merchant`, `note`, `tags[]`, `paymentMethod`, timestamps.
 - CRUD endpoints.
 - Filtering by month, category, merchant, tags, and amount range.
 
 ### 6.3 Income Management
+
 - Income fields: `id`, `userId`, `amount`, `currency`, `date`, `source`, `type`, `note`, timestamps.
 - CRUD endpoints.
 - Filtering by month, source, type, and amount range.
 
 ### 6.4 Recurring Subscription Management
+
 - Subscription fields: `id`, `userId`, `name`, `amount`, `currency`, `billingDay`, `category`, `merchant`, `isActive`, `startMonth`, `endMonth (nullable)`, timestamps.
 - CRUD endpoints for subscriptions.
 - "Import recurring items" action for a target month:
@@ -78,6 +89,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
   - Returns import summary (`created`, `skipped`, `errors`).
 
 ### 6.5 Monthly Dashboard
+
 - Monthly totals:
   - Total income
   - Total expenses
@@ -87,6 +99,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 - Top expense categories and unusual spikes.
 
 ### 6.6 AI Chat (Data-Grounded)
+
 - Chat endpoint where user asks questions in natural language.
 - AI answers must be grounded in user financial data for selected periods.
 - Response format:
@@ -103,12 +116,14 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
   - No fabricated values; if missing data, say so clearly.
 
 ### 6.7 CSV Import
+
 - Import expenses and income via CSV.
 - Header mapping step (user maps columns to supported fields).
 - Validation + preview before commit.
 - Duplicate detection heuristics.
 
 ## 7) Non-Functional Requirements
+
 - **Performance:** Monthly dashboard response under 2s for up to 10k transactions/user.
 - **Reliability:** 99.9% monthly API uptime target.
 - **Security:** OWASP-aligned validation, encrypted transport/storage.
@@ -116,29 +131,33 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 - **Observability:** Structured logs, request IDs, chat/audit traces.
 - **Accessibility:** WCAG 2.1 AA for key web flows.
 
-
 ## 8) AI-Agent-Friendly Implementation Plan
 
 ### Epic A: Transactions Core
+
 - Build expense and income entities + migrations.
 - Add CRUD APIs with validation.
 - Add filtering by month and category/source.
 
 ### Epic B: Recurring Subscriptions
+
 - Build subscription entities + APIs.
 - Build monthly import job/endpoint with idempotency and duplicate checks.
 - Add import-run logging.
 
 ### Epic C: Dashboard & Insights
+
 - Build aggregation service for monthly totals and trends.
 - Build endpoint for monthly financial snapshot and category analysis.
 
 ### Epic D: AI Chat
+
 - Build chat session/message storage.
 - Build data retrieval layer for grounded responses.
 - Build prompt orchestration and response guardrails.
 
 ### Epic E: Import and Quality
+
 - Add CSV import for expense and income.
 - Add robust validation and error reporting.
 - Add integration tests for import + chat grounding correctness.
@@ -146,6 +165,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ---
 
 ## 9) Acceptance Criteria (MVP)
+
 1. User can manage monthly expenses and income with accurate totals.
 2. User can create recurring subscriptions and import them into any month.
 3. Subscription import is idempotent for the same month and user.
@@ -156,6 +176,7 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
 ---
 
 ## 10) Risks & Mitigations
+
 1. **Inaccurate AI responses**
    - Mitigation: strict grounding with explicit computed facts and period metadata.
 2. **Recurring import duplicates**
@@ -164,4 +185,3 @@ Current alternatives (manual spreadsheets, disconnected apps) are slow and diffi
    - Mitigation: mapping preview, schema validation, and actionable row-level errors.
 4. **Privacy concerns**
    - Mitigation: tenant isolation, audit logs, and encrypted data handling.
-
