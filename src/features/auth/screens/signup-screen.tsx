@@ -6,9 +6,9 @@ import { useState } from "react";
 
 import { isApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toast } from "@/lib/toast";
 import { Button, Input } from "@/ui/base";
 
-import { AuthFeedbackBanner } from "../components/auth-feedback-banner";
 import { AuthFormCard } from "../components/auth-form-card";
 import { authInputClassName, publicRoutes, validateSignup } from "../types";
 
@@ -31,7 +31,6 @@ export function SignupScreen() {
     lastName: false,
     password: false,
   });
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validateSignup(values);
@@ -54,7 +53,6 @@ export function SignupScreen() {
       lastName: true,
       password: true,
     });
-    setStatusMessage(null);
 
     const hasErrors = Object.values(errors).some(Boolean);
 
@@ -73,13 +71,17 @@ export function SignupScreen() {
       );
       router.push("/login?status=registered");
     } catch (error) {
+      let message: string;
+
       if (isApiError(error) && error.isConflict()) {
-        setStatusMessage("An account with this email already exists.");
-      } else if (isApiError(error)) {
-        setStatusMessage(error.detail ?? error.message);
+        message = "An account with this email already exists.";
       } else {
-        setStatusMessage("Unable to create your account right now. Please try again.");
+        message = isApiError(error)
+          ? error.detail ?? error.message
+          : "Unable to create your account right now. Please try again.";
       }
+
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,10 +94,6 @@ export function SignupScreen() {
         title="Create your expensify account"
       >
         <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          {statusMessage ? (
-            <AuthFeedbackBanner tone="error">{statusMessage}</AuthFeedbackBanner>
-          ) : null}
-
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
               <label

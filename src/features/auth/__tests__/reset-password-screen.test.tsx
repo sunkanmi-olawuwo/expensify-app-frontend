@@ -44,7 +44,7 @@ describe("ResetPasswordScreen", () => {
     expect(screen.getByRole("button", { name: "Reset Password" })).toBeDisabled();
   });
 
-  it("shows the invalid-link message for validation failures", async () => {
+  it("shows the invalid-link error toast for validation failures", async () => {
     const user = userEvent.setup();
 
     vi.spyOn(authService, "resetPassword").mockRejectedValue(
@@ -64,8 +64,28 @@ describe("ResetPasswordScreen", () => {
     await user.type(screen.getByLabelText("Confirm Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Reset Password" }));
 
-    expect(
-      await screen.findByText("Invalid or expired reset link."),
-    ).toBeInTheDocument();
+    const errorToast = await screen.findByText("Invalid or expired reset link.");
+    expect(errorToast.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
+  });
+
+  it("shows a toast for non-validation reset failures", async () => {
+    const user = userEvent.setup();
+
+    vi.spyOn(authService, "resetPassword").mockRejectedValue(
+      new Error("Reset service unavailable."),
+    );
+
+    render(
+      <ResetPasswordScreen email="user@example.com" token="reset-token" />,
+    );
+
+    await user.type(screen.getByLabelText("New Password"), "secret123");
+    await user.type(screen.getByLabelText("Confirm Password"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Reset Password" }));
+
+    const errorToast = await screen.findByText(
+      "Unable to reset your password right now. Please try again.",
+    );
+    expect(errorToast.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
   });
 });

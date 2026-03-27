@@ -3,6 +3,7 @@ import { Inter, Manrope } from "next/font/google";
 import { QueryClientProvider } from "@/lib/api";
 import { AuthProvider } from "@/lib/auth";
 import { TooltipProvider } from "@/ui/base";
+import { ToastProvider } from "@/ui/composite";
 
 import type { Metadata } from "next";
 
@@ -41,7 +42,10 @@ export default function RootLayout({
       <body className="bg-background text-foreground min-h-screen antialiased">
         <QueryClientProvider>
           <AuthProvider>
-            <TooltipProvider>{children}</TooltipProvider>
+            <TooltipProvider>
+              {children}
+              <ToastProvider />
+            </TooltipProvider>
           </AuthProvider>
         </QueryClientProvider>
       </body>

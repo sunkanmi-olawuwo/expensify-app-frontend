@@ -39,12 +39,14 @@ describe("LoginScreen", () => {
     expect(screen.getByText("Enter a valid email address.")).toBeInTheDocument();
   });
 
-  it("shows the status banner from the login status prop", () => {
+  it("shows the status toast from the login status prop", async () => {
     render(<LoginScreen status="registered" />);
 
-    expect(
-      screen.getByText("Account created successfully. Log in to continue."),
-    ).toBeInTheDocument();
+    const statusToast = await screen.findByText(
+      "Account created successfully. Log in to continue.",
+    );
+
+    expect(statusToast.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
   });
 
   it("calls login and redirects on a successful submit", async () => {
@@ -75,7 +77,7 @@ describe("LoginScreen", () => {
     });
   });
 
-  it("displays the fallback error message on failure", async () => {
+  it("displays the fallback error toast on failure", async () => {
     const user = userEvent.setup();
 
     vi.spyOn(authService, "login").mockRejectedValue(
@@ -88,9 +90,11 @@ describe("LoginScreen", () => {
     await user.type(screen.getByLabelText("Password"), "password123");
     await user.click(screen.getByRole("button", { name: "Log In" }));
 
-    expect(
-      await screen.findByText("Unable to log in right now. Please try again."),
-    ).toBeInTheDocument();
+    const errorToast = await screen.findByText(
+      "Unable to log in right now. Please try again.",
+    );
+
+    expect(errorToast.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
     expect(
       screen.getByRole("link", { name: "Forgot password?" }),
     ).toHaveAttribute("href", "/forgot-password");

@@ -56,7 +56,7 @@ describe("SignupScreen", () => {
     });
   });
 
-  it("shows a conflict error without logging the user in", async () => {
+  it("shows a conflict error toast without logging the user in", async () => {
     const user = userEvent.setup();
     const router = getMockRouter();
 
@@ -78,9 +78,11 @@ describe("SignupScreen", () => {
     await user.type(screen.getByLabelText("Confirm Password"), "secret123");
     await user.click(screen.getByRole("button", { name: "Sign Up" }));
 
-    expect(
-      await screen.findByText("An account with this email already exists."),
-    ).toBeInTheDocument();
+    const errorToast = await screen.findByText(
+      "An account with this email already exists.",
+    );
+
+    expect(errorToast.closest("[aria-live]")).toHaveAttribute("aria-live", "assertive");
     expect(router.push).not.toHaveBeenCalledWith("/dashboard");
   });
 });
