@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx vitest:*)",
       "Bash(npx tsc:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)"
     ]
   }
 }
