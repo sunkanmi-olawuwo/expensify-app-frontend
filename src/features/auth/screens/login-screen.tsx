@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { isApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { toast } from "@/lib/toast";
 import { Button, Input } from "@/ui/base";
 
-import { AuthFeedbackBanner } from "../components/auth-feedback-banner";
 import { AuthFormCard } from "../components/auth-form-card";
 import {
+  asPublicAuthStatus,
   type FieldTouched,
   type LoginValues,
   type PublicAuthStatus,
@@ -30,11 +31,28 @@ export function LoginScreen({ status = null }: LoginScreenProps) {
     email: false,
     password: false,
   });
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validateLogin(values);
-  const searchStatusMessage = getPublicAuthStatusMessage(status);
+  const authStatus = asPublicAuthStatus(status);
+  const searchStatusMessage = getPublicAuthStatusMessage(authStatus);
+
+  useEffect(() => {
+    if (!authStatus || !searchStatusMessage) {
+      return;
+    }
+
+    if (authStatus === "session_expired") {
+      toast.info(searchStatusMessage, {
+        dedupeKey: `auth-status:${authStatus}`,
+      });
+      return;
+    }
+
+    toast.success(searchStatusMessage, {
+      dedupeKey: `auth-status:${authStatus}`,
+    });
+  }, [authStatus, searchStatusMessage]);
 
   function updateValue(field: keyof LoginValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -48,7 +66,6 @@ export function LoginScreen({ status = null }: LoginScreenProps) {
     event.preventDefault();
 
     setTouched({ email: true, password: true });
-    setStatusMessage(null);
 
     const hasErrors = Object.values(errors).some(Boolean);
 
@@ -61,11 +78,11 @@ export function LoginScreen({ status = null }: LoginScreenProps) {
     try {
       await login(values.email, values.password);
     } catch (error) {
-      if (isApiError(error)) {
-        setStatusMessage(error.detail ?? error.message);
-      } else {
-        setStatusMessage("Unable to log in right now. Please try again.");
-      }
+      const message = isApiError(error)
+        ? error.detail ?? error.message
+        : "Unable to log in right now. Please try again.";
+
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -78,16 +95,6 @@ export function LoginScreen({ status = null }: LoginScreenProps) {
         title="Log in to expensify"
       >
         <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          {searchStatusMessage ? (
-            <AuthFeedbackBanner tone="success">
-              {searchStatusMessage}
-            </AuthFeedbackBanner>
-          ) : null}
-
-          {statusMessage ? (
-            <AuthFeedbackBanner tone="error">{statusMessage}</AuthFeedbackBanner>
-          ) : null}
-
           <div className="space-y-2">
             <label className="text-label-sm text-muted-foreground" htmlFor="email">
               Email

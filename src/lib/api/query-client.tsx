@@ -7,10 +7,20 @@ import {
   QueryClientProvider as TanStackQueryClientProvider,
 } from "@tanstack/react-query";
 
+import { getToastErrorMessage, toast } from "@/lib/toast";
+
 import type { ReactNode } from "react";
 
-function logQueryError(error: unknown): void {
-  console.error(error);
+function handleQueryError(error: unknown): void {
+  if (process.env.NODE_ENV !== "test") {
+    console.error(error);
+  }
+
+  const message = getToastErrorMessage(error);
+
+  toast.error(message, {
+    dedupeKey: `query-error:${message}`,
+  });
 }
 
 export function createQueryClient(): QueryClient {
@@ -26,10 +36,10 @@ export function createQueryClient(): QueryClient {
       },
     },
     mutationCache: new MutationCache({
-      onError: logQueryError,
+      onError: handleQueryError,
     }),
     queryCache: new QueryCache({
-      onError: logQueryError,
+      onError: handleQueryError,
     }),
   });
 }

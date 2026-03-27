@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+import { resetToastState } from "@/lib/toast";
+
 import {
   getMockPathname,
   getMockRouter,
@@ -19,6 +21,7 @@ vi.mock("next/navigation", () => ({
 afterEach(() => {
   window.localStorage.clear();
   cleanup();
+  resetToastState();
   resetNextNavigationMocks();
   vi.restoreAllMocks();
 });

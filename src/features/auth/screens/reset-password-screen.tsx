@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { isApiError } from "@/lib/api";
 import { authService } from "@/lib/auth";
+import { toast } from "@/lib/toast";
 import { Button, Input } from "@/ui/base";
 
 import { AuthFeedbackBanner } from "../components/auth-feedback-banner";
@@ -36,7 +37,6 @@ export function ResetPasswordScreen({
     confirmPassword: false,
     newPassword: false,
   });
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validateResetPassword(values);
@@ -54,12 +54,10 @@ export function ResetPasswordScreen({
     event.preventDefault();
 
     setTouched({ confirmPassword: true, newPassword: true });
-    setStatusMessage(null);
 
     const hasErrors = Object.values(errors).some(Boolean);
 
     if (hasErrors || !email || !token) {
-      setStatusMessage("Invalid or expired reset link.");
       return;
     }
 
@@ -74,11 +72,15 @@ export function ResetPasswordScreen({
       router.replace("/login?status=password_reset");
     } catch (error) {
       if (isApiError(error) && error.isValidationError()) {
-        setStatusMessage("Invalid or expired reset link.");
-      } else if (isApiError(error)) {
-        setStatusMessage(error.detail ?? error.message);
+        toast.error("Invalid or expired reset link.", {
+          dedupeKey: "reset-password:invalid-link",
+        });
       } else {
-        setStatusMessage("Unable to reset your password right now. Please try again.");
+        const message = isApiError(error)
+          ? error.detail ?? error.message
+          : "Unable to reset your password right now. Please try again.";
+
+        toast.error(message);
       }
     } finally {
       setIsSubmitting(false);
@@ -96,10 +98,6 @@ export function ResetPasswordScreen({
             <AuthFeedbackBanner tone="error">
               Invalid or expired reset link.
             </AuthFeedbackBanner>
-          ) : null}
-
-          {statusMessage ? (
-            <AuthFeedbackBanner tone="error">{statusMessage}</AuthFeedbackBanner>
           ) : null}
 
           <div className="space-y-2">

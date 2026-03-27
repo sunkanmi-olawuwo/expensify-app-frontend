@@ -5,9 +5,9 @@ import { useState } from "react";
 
 import { isApiError } from "@/lib/api";
 import { authService } from "@/lib/auth";
+import { toast } from "@/lib/toast";
 import { Button, Input } from "@/ui/base";
 
-import { AuthFeedbackBanner } from "../components/auth-feedback-banner";
 import { AuthFormCard } from "../components/auth-form-card";
 import {
   authInputClassName,
@@ -22,8 +22,6 @@ export function ForgotPasswordScreen() {
   const [touched, setTouched] = useState<FieldTouched<ForgotPasswordValues>>({
     email: false,
   });
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validateForgotPassword(values);
@@ -36,8 +34,6 @@ export function ForgotPasswordScreen() {
     event.preventDefault();
 
     setTouched({ email: true });
-    setErrorMessage(null);
-    setSuccessMessage(null);
 
     if (errors.email) {
       return;
@@ -47,13 +43,15 @@ export function ForgotPasswordScreen() {
 
     try {
       await authService.forgotPassword(values);
-      setSuccessMessage("Check your email for a reset link.");
+      toast.success("Check your email for a reset link.", {
+        dedupeKey: "forgot-password:success",
+      });
     } catch (error) {
-      if (isApiError(error)) {
-        setErrorMessage(error.detail ?? error.message);
-      } else {
-        setErrorMessage("Unable to send a reset link right now. Please try again.");
-      }
+      const message = isApiError(error)
+        ? error.detail ?? error.message
+        : "Unable to send a reset link right now. Please try again.";
+
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -66,14 +64,6 @@ export function ForgotPasswordScreen() {
         title="Forgot your password?"
       >
         <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          {successMessage ? (
-            <AuthFeedbackBanner tone="success">{successMessage}</AuthFeedbackBanner>
-          ) : null}
-
-          {errorMessage ? (
-            <AuthFeedbackBanner tone="error">{errorMessage}</AuthFeedbackBanner>
-          ) : null}
-
           <div className="space-y-2">
             <label className="text-label-sm text-muted-foreground" htmlFor="email">
               Email

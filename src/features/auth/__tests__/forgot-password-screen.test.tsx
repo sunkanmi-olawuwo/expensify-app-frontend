@@ -20,7 +20,7 @@ describe("ForgotPasswordScreen", () => {
     ).toBeInTheDocument();
   });
 
-  it("always shows the check-your-email message after submit", async () => {
+  it("shows the check-your-email success toast after submit", async () => {
     const user = userEvent.setup();
 
     vi.spyOn(authService, "forgotPassword").mockResolvedValue(undefined);
@@ -30,9 +30,11 @@ describe("ForgotPasswordScreen", () => {
     await user.type(screen.getByLabelText("Email"), "user@example.com");
     await user.click(screen.getByRole("button", { name: "Send Reset Link" }));
 
-    expect(
-      await screen.findByText("Check your email for a reset link."),
-    ).toBeInTheDocument();
+    const successToast = await screen.findByText(
+      "Check your email for a reset link.",
+    );
+
+    expect(successToast.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
     expect(screen.getByRole("link", { name: "Back to Log In" })).toHaveAttribute(
       "href",
       "/login",

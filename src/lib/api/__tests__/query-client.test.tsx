@@ -1,6 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { ApiError } from "@/lib/api";
+import { toast } from "@/lib/toast";
 import { render, screen } from "@/test/render";
 
 import {
@@ -55,5 +57,34 @@ describe("query-client", () => {
     );
 
     expect(screen.getByText("custom-client")).toBeInTheDocument();
+  });
+
+  it("surfaces normalized errors through query and mutation toast handlers", () => {
+    const toastErrorSpy = vi.spyOn(toast, "error").mockReturnValue("toast-1");
+    const client = createQueryClient();
+
+    client.getQueryCache().config.onError?.(
+      new ApiError({
+        detail: "The query failed.",
+        message: "The query failed.",
+        status: 500,
+      }),
+      {} as never,
+    );
+
+    client.getMutationCache().config.onError?.(
+      new Error("The mutation failed."),
+      undefined,
+      undefined,
+      {} as never,
+      {} as never,
+    );
+
+    expect(toastErrorSpy).toHaveBeenNthCalledWith(1, "The query failed.", {
+      dedupeKey: "query-error:The query failed.",
+    });
+    expect(toastErrorSpy).toHaveBeenNthCalledWith(2, "The mutation failed.", {
+      dedupeKey: "query-error:The mutation failed.",
+    });
   });
 });
