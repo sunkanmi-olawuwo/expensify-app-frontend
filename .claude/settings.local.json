@@ -6,7 +6,8 @@
       "Bash(git status:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm lint:*)",
-      "Bash(pnpm typecheck:*)"
+      "Bash(pnpm typecheck:*)",
+      "Bash(ls:*)"
     ]
   }
 }
