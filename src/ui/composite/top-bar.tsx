@@ -34,7 +34,7 @@ export function TopBar() {
 
   return (
     <header className="bg-background/80 sticky top-0 z-30 px-4 pt-4 pb-4 backdrop-blur-xl sm:px-8">
-      <div className="shadow-ambient-sm rounded-full bg-white/70 px-3 py-3 sm:px-5">
+      <div className="bg-popover shadow-ambient-sm rounded-full px-3 py-3 sm:px-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center">
           <div className="flex items-start gap-3 lg:min-w-[12rem] lg:flex-1 lg:items-center">
             <div className="flex items-center gap-3 lg:hidden">
@@ -87,50 +87,50 @@ export function TopBar() {
             </div>
 
             <div className="flex items-center justify-end gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label="Open notifications"
-                  className={iconButtonClassName}
-                  size="icon-lg"
-                  variant="ghost"
-                >
-                  <Bell className="size-5" />
-                  <span className="bg-secondary absolute top-3 right-3 size-2 rounded-full" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Notifications</TooltipContent>
-            </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label="Open notifications"
+                    className={iconButtonClassName}
+                    size="icon-lg"
+                    variant="ghost"
+                  >
+                    <Bell className="size-5" />
+                    <span className="bg-secondary absolute top-3 right-3 size-2 rounded-full" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Notifications</TooltipContent>
+              </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label="Open help"
-                  className={iconButtonClassName}
-                  size="icon-lg"
-                  variant="ghost"
-                >
-                  <CircleHelp className="size-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Help</TooltipContent>
-            </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label="Open help"
+                    className={iconButtonClassName}
+                    size="icon-lg"
+                    variant="ghost"
+                  >
+                    <CircleHelp className="size-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Help</TooltipContent>
+              </Tooltip>
 
-            <Button className="h-12 rounded-full px-5">
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">Add New</span>
-            </Button>
+              <Button className="h-12 rounded-full px-5">
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">Add New</span>
+              </Button>
 
-            <Avatar
-              className={cn(
-                iconButtonClassName,
-                "bg-primary text-primary-foreground overflow-hidden",
-              )}
-            >
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                FA
-              </AvatarFallback>
-            </Avatar>
+              <Avatar
+                className={cn(
+                  iconButtonClassName,
+                  "bg-primary text-primary-foreground overflow-hidden",
+                )}
+              >
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                  FA
+                </AvatarFallback>
+              </Avatar>
             </div>
           </div>
         </div>

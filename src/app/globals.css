@@ -54,6 +54,55 @@
   --sidebar-ring: var(--ring);
 }
 
+.dark {
+  --background: #0d1222;
+  --foreground: #ecf1ff;
+  --surface: #141b31;
+  --surface-bright: #1c2646;
+  --surface-container-lowest: #11182d;
+  --surface-container-low: #18203a;
+  --surface-container: #1d2744;
+  --surface-container-high: #273253;
+  --surface-container-highest: #334066;
+  --card: #151d35;
+  --card-foreground: #ecf1ff;
+  --popover: rgb(17 24 45 / 0.84);
+  --popover-foreground: #f3f6ff;
+  --primary: #90a2eb;
+  --primary-container: #5a70b1;
+  --primary-fixed: #b9c4fb;
+  --primary-foreground: #0f1630;
+  --secondary: #6ec39a;
+  --secondary-foreground: #0f1d18;
+  --muted: #1c2542;
+  --muted-foreground: #aab5d7;
+  --accent: #202b4c;
+  --accent-foreground: #f2f5ff;
+  --destructive: #f1897d;
+  --destructive-foreground: #221111;
+  --border: rgb(168 181 224 / 0.16);
+  --input: #1f2948;
+  --ring: rgb(144 162 235 / 0.34);
+  --outline-variant: #52638e;
+  --ghost-border: rgb(168 181 224 / 0.22);
+  --shadow-ambient-sm: 0 24px 40px rgb(4 8 19 / 0.34);
+  --shadow-ambient-md: 0 32px 52px rgb(4 8 19 / 0.42);
+  --shadow-ambient-lg: 0 40px 72px rgb(4 8 19 / 0.5);
+  --chart-1: #b9c4fb;
+  --chart-2: #96c6ff;
+  --chart-3: #7ee0b1;
+  --chart-4: #ffab9f;
+  --chart-5: #d6defd;
+  --sidebar: #10172b;
+  --sidebar-foreground: #ecf1ff;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in srgb, var(--primary-fixed) 18%, var(--sidebar));
+  --sidebar-accent-foreground: #f2f5ff;
+  --sidebar-border: rgb(168 181 224 / 0.16);
+  --sidebar-ring: var(--ring);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -163,6 +212,25 @@
 }
 
 @layer utilities {
+  .dark .bg-editorial-grid {
+    background-image:
+      radial-gradient(
+        circle at top left,
+        rgb(144 162 235 / 0.18),
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at 85% 8%,
+        rgb(110 195 154 / 0.12),
+        transparent 22%
+      ),
+      linear-gradient(150deg, #121933, #18213f 56%, #0f1529 100%);
+  }
+
+  .dark .sidebar-scrollbar {
+    scrollbar-color: rgb(170 181 215 / 0.44) transparent;
+  }
+
   .sidebar-scrollbar::-webkit-scrollbar {
     width: 0.8rem;
   }
@@ -190,6 +258,28 @@
     );
     background-clip: padding-box;
   }
+
+  .dark .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border: 0.22rem solid transparent;
+    border-radius: 9999px;
+    background: linear-gradient(
+      180deg,
+      rgb(185 196 251 / 0.36),
+      rgb(112 129 184 / 0.54)
+    );
+    background-clip: padding-box;
+  }
+
+  .dark .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    border: 0.22rem solid transparent;
+    border-radius: 9999px;
+    background: linear-gradient(
+      180deg,
+      rgb(185 196 251 / 0.5),
+      rgb(133 151 214 / 0.7)
+    );
+    background-clip: padding-box;
+  }
 }
 
 @layer base {
@@ -203,6 +293,20 @@
     @apply bg-background text-foreground font-sans;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    html.theme-animating *,
+    html.theme-animating *::before,
+    html.theme-animating *::after {
+      transition:
+        background-color 200ms ease,
+        border-color 200ms ease,
+        color 200ms ease,
+        fill 200ms ease,
+        stroke 200ms ease,
+        box-shadow 200ms ease;
+    }
+  }
+
   body {
     background:
       radial-gradient(
@@ -212,6 +316,21 @@
       ),
       radial-gradient(circle at 90% 0%, rgb(45 106 79 / 0.1), transparent 24%),
       linear-gradient(180deg, #fafbff 0%, #f4f5f9 100%);
+  }
+
+  .dark body {
+    background:
+      radial-gradient(
+        circle at top left,
+        rgb(144 162 235 / 0.16),
+        transparent 20%
+      ),
+      radial-gradient(
+        circle at 88% 0%,
+        rgb(110 195 154 / 0.12),
+        transparent 22%
+      ),
+      linear-gradient(180deg, #121830 0%, #0d1222 100%);
   }
 
   a {
@@ -228,5 +347,11 @@
 
   ::selection {
     background: rgb(42 63 122 / 0.18);
+    color: var(--foreground);
+  }
+
+  .dark ::selection {
+    background: rgb(144 162 235 / 0.32);
+    color: var(--foreground);
   }
 }

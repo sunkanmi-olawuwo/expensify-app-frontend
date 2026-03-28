@@ -10,6 +10,7 @@ describe("PublicNavbar", () => {
     render(<PublicNavbar />);
 
     expect(screen.getByRole("link", { name: "expensify" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /theme/i })).toHaveLength(1);
     expect(screen.getAllByRole("link", { name: "Log In" })).not.toHaveLength(0);
     expect(
       screen.getAllByRole("link", { name: "Get Started" }),
@@ -31,5 +32,6 @@ describe("PublicNavbar", () => {
     expect(
       screen.getAllByRole("link", { name: "Get Started" }),
     ).not.toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: /theme/i })).toHaveLength(1);
   });
 });

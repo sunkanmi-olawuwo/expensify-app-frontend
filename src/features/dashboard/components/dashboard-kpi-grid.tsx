@@ -25,7 +25,7 @@ function KpiCard({ changePercentage, currency, label, value }: KpiCardProps) {
   ).toFixed(1)}%`;
 
   return (
-    <article className="bg-card shadow-ambient-sm rounded-[calc(var(--radius-shell)-0.35rem)] grid min-h-56 grid-rows-[auto_auto_1fr] gap-5 p-5">
+    <article className="bg-card shadow-ambient-md rounded-[calc(var(--radius-shell)-0.35rem)] grid min-h-56 grid-rows-[auto_auto_1fr] gap-5 p-5">
       <p className="text-sm font-medium text-muted-foreground whitespace-nowrap">
         {label}
       </p>

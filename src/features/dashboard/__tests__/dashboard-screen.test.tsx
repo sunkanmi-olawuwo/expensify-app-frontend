@@ -1,7 +1,6 @@
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { render, screen, within } from "@/test/render";
+import { render, screen } from "@/test/render";
 
 import { DashboardScreen } from "../screens/dashboard-screen";
 
@@ -22,17 +21,12 @@ describe("DashboardScreen", () => {
     ).toHaveAttribute("href", "/transactions");
     expect(screen.getByText("Maison et Table")).toBeInTheDocument();
     expect(screen.getAllByRole("progressbar")).toHaveLength(5);
-  });
-
-  it("opens a placeholder sheet from a quick action", async () => {
-    const user = userEvent.setup();
-
-    render(<DashboardScreen />);
-
-    await user.click(screen.getByRole("button", { name: /send money/i }));
-
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Coming soon")).toBeInTheDocument();
-    expect(within(dialog).getByText("Send Money")).toBeInTheDocument();
+    expect(screen.queryByText("Money Tools")).not.toBeInTheDocument();
+    expect(screen.queryByText("Quick actions")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Current month performance, top spending categories, and recent transactions.",
+      ),
+    ).not.toBeInTheDocument();
   });
 });

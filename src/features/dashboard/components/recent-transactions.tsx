@@ -27,6 +27,7 @@ export function RecentTransactions({ summary }: RecentTransactionsProps) {
           View all transactions
         </Link>
       }
+      className="shadow-ambient-md"
       description="Most recent posted and pending entries"
       eyebrow="Recent Transactions"
       title="Last 5 transactions"

@@ -1,12 +1,14 @@
 "use client";
 
-import { LifeBuoy, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { primaryNavItems } from "@/lib/app-shell";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+
+import { ThemeToggle } from "./theme-toggle";
 
 type AppSidebarProps = {
   className?: string;
@@ -33,10 +35,6 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
             Personal finance workspace
           </p>
         </div>
-        <p className="text-body-md text-muted-foreground max-w-[15rem]">
-          A purpose-built shell for the personal finance experience defined in
-          the design system.
-        </p>
       </div>
 
       <nav aria-label="Primary navigation" className="space-y-2 pr-2">
@@ -58,7 +56,7 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
               <span
                 className={cn(
                   "bg-surface-container-low text-muted-foreground flex size-10 items-center justify-center rounded-full",
-                  isActive && "text-primary bg-white",
+                  isActive && "bg-surface-bright text-primary",
                 )}
               >
                 <Icon className="size-5" />
@@ -69,15 +67,10 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="mt-auto pr-2">
+      <div className="mt-auto space-y-4 pr-2">
+        <ThemeToggle switchStyle />
+
         <div className="space-y-2">
-          <button
-            className="text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex w-full items-center gap-3 rounded-full px-3 py-2 transition-colors"
-            type="button"
-          >
-            <LifeBuoy className="size-4" />
-            Support
-          </button>
           <button
             className="text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex w-full items-center gap-3 rounded-full px-3 py-2 transition-colors"
             onClick={() => void logout()}

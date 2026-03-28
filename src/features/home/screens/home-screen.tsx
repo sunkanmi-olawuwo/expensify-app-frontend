@@ -69,7 +69,7 @@ export function HomeScreen() {
         </div>
 
         <SurfaceCard
-          className="bg-white/72"
+          className="bg-popover"
           description="See how the product frames your money before you ever sign in: current cash position, recurring commitments, and the habits that shape the month."
           eyebrow="Financial Snapshot"
           title="Start with the signals that matter most."

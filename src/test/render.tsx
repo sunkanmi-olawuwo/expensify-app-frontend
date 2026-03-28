@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { createQueryClient, QueryClientProvider } from "@/lib/api";
 import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
 import { TooltipProvider } from "@/ui/base";
 import { ToastProvider } from "@/ui/composite";
 
@@ -16,14 +17,16 @@ function TestProviders({ children }: { children: ReactNode }) {
   const [client] = useState(() => createQueryClient());
 
   return (
-    <QueryClientProvider client={client}>
-      <AuthProvider>
-        <TooltipProvider>
-          {children}
-          <ToastProvider />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <TooltipProvider>
+            {children}
+            <ToastProvider />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

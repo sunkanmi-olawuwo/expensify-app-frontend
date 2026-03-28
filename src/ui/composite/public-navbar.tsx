@@ -7,6 +7,8 @@ import { useState } from "react";
 import { publicRoutes } from "@/features/auth/types";
 import { Button, Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/ui/base";
 
+import { ThemeToggle } from "./theme-toggle";
+
 const publicLinks = [
   { href: publicRoutes.home, label: "Home" },
   { href: publicRoutes.login, label: "Log In" },
@@ -30,6 +32,7 @@ export function PublicNavbar() {
           aria-label="Public primary navigation"
           className="hidden items-center gap-3 sm:flex"
         >
+          <ThemeToggle compact />
           <Button asChild className="h-11 rounded-full px-5" variant="ghost">
             <Link href={publicRoutes.login}>Log In</Link>
           </Button>
@@ -58,6 +61,7 @@ export function PublicNavbar() {
               <SheetTitle className="font-display text-xl tracking-[-0.06em]">
                 expensify
               </SheetTitle>
+              <ThemeToggle />
               <nav aria-label="Public navigation menu" className="space-y-3">
                 {publicLinks.map((link) => (
                   <Link

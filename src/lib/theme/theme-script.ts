@@ -1,0 +1,3 @@
+import { THEME_MEDIA_QUERY, THEME_STORAGE_KEY } from "./shared";
+
+export const themeInitializationScript = `(function(){var root=document.documentElement;var storedTheme="system";try{var value=window.localStorage.getItem("${THEME_STORAGE_KEY}");if(value==="light"||value==="dark"||value==="system"){storedTheme=value;}}catch(error){}var systemTheme=window.matchMedia&&window.matchMedia("${THEME_MEDIA_QUERY}").matches?"dark":"light";var resolvedTheme=storedTheme==="system"?systemTheme:storedTheme;root.classList.toggle("dark",resolvedTheme==="dark");root.style.colorScheme=resolvedTheme;root.dataset.themePreference=storedTheme;root.dataset.themeResolved=resolvedTheme;})();`;

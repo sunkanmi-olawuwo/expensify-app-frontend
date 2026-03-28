@@ -15,6 +15,9 @@ describe("AppSidebar", () => {
 
     expect(screen.getByText("expensify")).toBeInTheDocument();
     expect(
+      screen.queryByText(/a purpose-built shell for the personal finance experience/i),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole("link", { name: /dashboard/i }),
     ).toBeInTheDocument();
     expect(
@@ -23,13 +26,19 @@ describe("AppSidebar", () => {
     expect(
       screen.getByRole("link", { name: /analytics/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /settings/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /chat/i }),
     ).not.toBeInTheDocument();
     expect(
+      screen.queryByRole("button", { name: /support/i }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: /upgrade now/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: /dark mode/i })).toBeInTheDocument();
     expect(screen.getByRole("complementary")).toHaveClass(
       "overflow-y-auto",
       "sidebar-scrollbar",
