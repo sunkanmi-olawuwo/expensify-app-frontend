@@ -6,5 +6,6 @@ export * from "./placeholder-chart";
 export * from "./public-footer";
 export * from "./public-navbar";
 export * from "./surface-card";
+export * from "./theme-toggle";
 export * from "./toast-provider";
 export * from "./top-bar";

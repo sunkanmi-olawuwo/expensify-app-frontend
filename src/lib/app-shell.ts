@@ -3,7 +3,6 @@ import {
   CreditCard,
   LayoutDashboard,
   MessageSquareText,
-  Settings2,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -44,11 +43,6 @@ export const primaryNavItems: NavItem[] = [
     icon: BarChart3,
     label: "Analytics",
   },
-  {
-    href: "/settings",
-    icon: Settings2,
-    label: "Settings",
-  },
 ];
 
 const pageChromeByRoute: Record<AppRoute, PageChrome> = {
@@ -69,9 +63,9 @@ const pageChromeByRoute: Record<AppRoute, PageChrome> = {
   "/dashboard": {
     description:
       "Anchor the month around available capital, recurring flows, and the ledger items that need attention now.",
-    eyebrow: "Personal Finance",
-    searchPlaceholder: "Search dashboard...",
-    title: "A monthly story, not a spreadsheet.",
+    eyebrow: "Personal Finance Dashboard",
+    searchPlaceholder: "Search ...",
+    title: "",
   },
   "/settings": {
     description:

@@ -5,7 +5,6 @@ import { PageHeader } from "@/ui/composite";
 import { DashboardHero } from "../components/dashboard-hero";
 import { DashboardKpiGrid } from "../components/dashboard-kpi-grid";
 import { MonthlyPerformanceChart } from "../components/monthly-performance-chart";
-import { QuickActionsPanel } from "../components/quick-actions-panel";
 import { RecentTransactions } from "../components/recent-transactions";
 import { SpendingBreakdown } from "../components/spending-breakdown";
 import { useDashboardSummary } from "../hooks/use-dashboard-summary";
@@ -38,11 +37,7 @@ export function DashboardScreen() {
 
   return (
     <div className="space-y-6 py-4 sm:py-6">
-      <PageHeader
-        description="Current month performance, top spending categories, and recent transactions."
-        eyebrow="Dashboard"
-        title="Financial overview"
-      />
+      <PageHeader eyebrow="Dashboard" title="Financial overview" />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_22rem]">
         <div className="space-y-6">
@@ -54,7 +49,6 @@ export function DashboardScreen() {
         </div>
 
         <div className="space-y-6">
-          <QuickActionsPanel />
           <SpendingBreakdown summary={summary} />
           <RecentTransactions summary={summary} />
         </div>

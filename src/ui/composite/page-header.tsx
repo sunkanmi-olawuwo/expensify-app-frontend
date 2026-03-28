@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 type PageHeaderProps = {
   className?: string;
-  description: string;
+  description?: string;
   eyebrow: string;
   title: string;
 };
@@ -20,7 +20,9 @@ export function PageHeader({
         <h1 className="text-headline-md text-foreground max-w-3xl sm:text-[2.4rem]">
           {title}
         </h1>
-        <p className="text-body-md text-muted-foreground">{description}</p>
+        {description ? (
+          <p className="text-body-md text-muted-foreground">{description}</p>
+        ) : null}
       </div>
     </header>
   );

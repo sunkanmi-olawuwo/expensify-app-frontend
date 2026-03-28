@@ -2,6 +2,8 @@ import { Inter, Manrope } from "next/font/google";
 
 import { QueryClientProvider } from "@/lib/api";
 import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
+import { themeInitializationScript } from "@/lib/theme/theme-script";
 import { TooltipProvider } from "@/ui/base";
 import { ToastProvider } from "@/ui/composite";
 
@@ -39,15 +41,23 @@ export default function RootLayout({
       className={`${inter.variable} ${manrope.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{ __html: themeInitializationScript }}
+          id="theme-init"
+        />
+      </head>
       <body className="bg-background text-foreground min-h-screen antialiased">
-        <QueryClientProvider>
-          <AuthProvider>
-            <TooltipProvider>
-              {children}
-              <ToastProvider />
-            </TooltipProvider>
-          </AuthProvider>
-        </QueryClientProvider>
+        <ThemeProvider>
+          <QueryClientProvider>
+            <AuthProvider>
+              <TooltipProvider>
+                {children}
+                <ToastProvider />
+              </TooltipProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

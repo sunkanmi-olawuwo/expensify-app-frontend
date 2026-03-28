@@ -5,7 +5,8 @@
       "Bash(npx tsc:*)",
       "Bash(git status:*)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm typecheck:*)"
     ]
   }
 }

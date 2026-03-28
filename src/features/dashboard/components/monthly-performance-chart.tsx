@@ -117,6 +117,7 @@ export function MonthlyPerformanceChart({
   return (
     <SurfaceCard
       action={<Badge variant="outline">Last 6 months</Badge>}
+      className="shadow-ambient-md"
       description="Income and expenses over time"
       eyebrow="Monthly Performance"
       title="Cash flow trend"
@@ -213,7 +214,8 @@ export function MonthlyPerformanceChart({
               return (
                 <g key={value}>
                   <line
-                    stroke="rgb(196 200 212 / 0.25)"
+                    stroke="var(--outline-variant)"
+                    strokeOpacity="0.35"
                     strokeDasharray="4 8"
                     x1={padding.left}
                     x2={chartWidth - padding.right}
@@ -251,7 +253,8 @@ export function MonthlyPerformanceChart({
               strokeWidth="3"
             />
             <line
-              stroke="rgb(26 35 64 / 0.18)"
+              stroke="var(--outline-variant)"
+              strokeOpacity="0.45"
               strokeDasharray="4 8"
               x1={activePoint.x}
               x2={activePoint.x}
@@ -325,7 +328,7 @@ export function MonthlyPerformanceChart({
 
           <div
             aria-controls="chart-tooltip"
-            className="pointer-events-none absolute top-5 z-10 rounded-[1rem] bg-white/94 p-3 shadow-[0_18px_32px_rgb(26_35_64_/_0.1)]"
+            className="bg-popover shadow-ambient-sm pointer-events-none absolute top-5 z-10 rounded-[1rem] p-3"
             id="chart-tooltip"
             role="tooltip"
             style={{

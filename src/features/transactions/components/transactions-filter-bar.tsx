@@ -16,7 +16,7 @@ export function TransactionsFilterBar() {
         {transactionFilters.map((filter) => (
           <div
             key={filter.label}
-            className="shadow-ambient-sm min-w-0 rounded-full bg-white px-4 py-3 sm:min-w-44"
+            className="bg-surface shadow-ambient-sm min-w-0 rounded-full px-4 py-3 sm:min-w-44"
           >
             <p className="text-label-sm text-muted-foreground">
               {filter.label}

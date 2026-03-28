@@ -15,6 +15,7 @@ type SpendingBreakdownProps = {
 export function SpendingBreakdown({ summary }: SpendingBreakdownProps) {
   return (
     <SurfaceCard
+      className="shadow-ambient-md"
       description="Largest expense categories this month"
       eyebrow="Spending Breakdown"
       title="Top categories"
