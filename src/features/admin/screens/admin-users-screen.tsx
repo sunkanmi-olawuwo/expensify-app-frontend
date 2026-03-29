@@ -9,11 +9,10 @@ import { AdminSubNav } from "../components/admin-sub-nav";
 import { UserDeleteDialog } from "../components/user-delete-dialog";
 import { UsersTable } from "../components/users-table";
 import { UsersTableToolbar } from "../components/users-table-toolbar";
-
-import type { RoleFilterValue } from "../components/users-table-toolbar";
 import { useAdminUsers } from "../hooks/use-admin-users";
 import { useDeleteUser } from "../hooks/use-delete-user";
 
+import type { RoleFilterValue } from "../components/users-table-toolbar";
 import type {
   AdminUserListItem,
   PagedResponseMetadata,
