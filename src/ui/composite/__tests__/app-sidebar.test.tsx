@@ -1,6 +1,7 @@
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import * as authContextModule from "@/lib/auth/auth-context";
 import { authService } from "@/lib/auth/auth-service";
 import { getMockRouter, setMockPathname } from "@/test/next-navigation";
 import { render, screen } from "@/test/render";
@@ -57,5 +58,68 @@ describe("AppSidebar", () => {
     await user.click(screen.getByRole("button", { name: /logout/i }));
 
     expect(router.replace).toHaveBeenCalledWith("/login?status=logged_out");
+  });
+
+  it("shows the administration section for admin users", () => {
+    setMockPathname("/admin/users");
+    vi.spyOn(authContextModule, "useAuth").mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      register: vi.fn(),
+      updateUser: vi.fn(),
+      user: {
+        email: "admin@example.com",
+        firstName: "Alex",
+        id: "user-1",
+        lastName: "Admin",
+        role: "Admin",
+      },
+    });
+
+    render(<AppSidebar />);
+
+    expect(screen.getByText("Administration")).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Administration" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Users" })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
+    expect(screen.getByRole("link", { name: "Catalogs" })).toHaveAttribute(
+      "href",
+      "/admin/catalogs",
+    );
+  });
+
+  it("does not show admin navigation for non-admin users", () => {
+    setMockPathname("/dashboard");
+    vi.spyOn(authContextModule, "useAuth").mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      login: vi.fn(),
+      logout: vi.fn(),
+      register: vi.fn(),
+      updateUser: vi.fn(),
+      user: {
+        email: "user@example.com",
+        firstName: "Morgan",
+        id: "user-1",
+        lastName: "Lee",
+        role: "User",
+      },
+    });
+
+    render(<AppSidebar />);
+
+    expect(screen.queryByText("Administration")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Administration" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Catalogs" }),
+    ).not.toBeInTheDocument();
   });
 });

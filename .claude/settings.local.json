@@ -7,7 +7,11 @@
       "Bash(pnpm test:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm typecheck:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cat \"C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/src/app/\\(workspace\\)/admin/layout.tsx\")",
+      "Bash(cat \"C:/Users/sunka/source/repos/BigTechHQ/expensify-app-frontend/src/app/\\(workspace\\)/admin/page.tsx\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
