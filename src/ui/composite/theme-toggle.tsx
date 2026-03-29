@@ -1,7 +1,7 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { getNextTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -36,21 +36,32 @@ const themeConfig: Record<
   },
 };
 
+function subscribeToHydration(): () => void {
+  return () => undefined;
+}
+
 export function ThemeToggle({
   className,
   compact = false,
   switchStyle = false,
 }: ThemeToggleProps) {
   const { resolvedTheme, setTheme, theme } = useTheme();
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
   const [statusMessage, setStatusMessage] = useState("");
-  const nextTheme = getNextTheme(theme);
-  const currentTheme = themeConfig[theme];
+  const renderTheme = mounted ? theme : "system";
+  const renderResolvedTheme = mounted ? resolvedTheme : "light";
+  const nextTheme = getNextTheme(renderTheme);
+  const currentTheme = themeConfig[renderTheme];
   const nextThemeLabel = themeConfig[nextTheme].label;
   const Icon = currentTheme.icon;
-  const isDarkEnabled = resolvedTheme === "dark";
+  const isDarkEnabled = renderResolvedTheme === "dark";
   const currentLabel =
-    theme === "system"
-      ? `${currentTheme.label} (${resolvedTheme})`
+    renderTheme === "system"
+      ? `${currentTheme.label} (${renderResolvedTheme})`
       : currentTheme.label;
   const ariaLabel = `Theme ${currentTheme.label}. Switch to ${nextThemeLabel} theme.`;
 
@@ -68,8 +79,8 @@ export function ThemeToggle({
             "bg-surface text-foreground shadow-ambient-sm size-11 rounded-full hover:bg-surface-container-low",
             className,
           )}
-          data-resolved-theme={resolvedTheme}
-          data-theme={theme}
+          data-resolved-theme={renderResolvedTheme}
+          data-theme={renderTheme}
           onClick={handleClick}
           size="icon-lg"
           suppressHydrationWarning
@@ -104,8 +115,8 @@ export function ThemeToggle({
             "bg-surface-container-low hover:bg-surface-container flex h-auto w-full items-center justify-between rounded-[1.2rem] px-4 py-3 shadow-none",
             className,
           )}
-          data-resolved-theme={resolvedTheme}
-          data-theme={theme}
+          data-resolved-theme={renderResolvedTheme}
+          data-theme={renderTheme}
           onClick={() => {
             const nextResolvedTheme = isDarkEnabled ? "light" : "dark";
 
@@ -160,12 +171,12 @@ export function ThemeToggle({
     <>
       <Button
         aria-label={ariaLabel}
-        className={cn(
-          "bg-surface-container-low hover:bg-surface-container flex h-auto w-full items-center rounded-[1.2rem] px-4 py-3 text-left shadow-none",
-          className,
-        )}
-        data-resolved-theme={resolvedTheme}
-        data-theme={theme}
+          className={cn(
+            "bg-surface-container-low hover:bg-surface-container flex h-auto w-full items-center rounded-[1.2rem] px-4 py-3 text-left shadow-none",
+            className,
+          )}
+        data-resolved-theme={renderResolvedTheme}
+        data-theme={renderTheme}
         onClick={handleClick}
         suppressHydrationWarning
         type="button"

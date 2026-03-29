@@ -1,4 +1,5 @@
 import { Inter, Manrope } from "next/font/google";
+import Script from "next/script";
 
 import { QueryClientProvider } from "@/lib/api";
 import { AuthProvider } from "@/lib/auth";
@@ -42,10 +43,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script
-          dangerouslySetInnerHTML={{ __html: themeInitializationScript }}
-          id="theme-init"
-        />
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitializationScript}
+        </Script>
       </head>
       <body className="bg-background text-foreground min-h-screen antialiased">
         <ThemeProvider>
