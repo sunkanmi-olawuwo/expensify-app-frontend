@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { ZodArray, ZodTypeAny } from "zod";
+import type { ZodTypeAny } from "zod";
 
 const guidSchema = z.string().uuid();
 const monthPeriodSchema = z
@@ -14,7 +14,15 @@ const isoDateSchema = z
   );
 const sortOrderSchema = z.enum(["asc", "desc"]);
 
-const pagedResponseBaseSchema = z.object({
+const pagedResponseInputSchema = z.object({
+  curentPage: z.number().int().nonnegative(),
+  page: z.number().int().nonnegative(),
+  pageSize: z.number().int().positive(),
+  totalCount: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+});
+
+const normalizedPagedResponseMetadataSchema = z.object({
   currentPage: z.number().int().nonnegative(),
   page: z.number().int().nonnegative(),
   pageSize: z.number().int().positive(),
@@ -22,22 +30,41 @@ const pagedResponseBaseSchema = z.object({
   totalPages: z.number().int().nonnegative(),
 });
 
-export const pagedResponseMetadataSchema = pagedResponseBaseSchema;
+function normalizePagedResponse(
+  value: Record<string, unknown> & { curentPage: number },
+) {
+  const { curentPage, ...rest } = value;
+
+  return {
+    ...rest,
+    currentPage: curentPage,
+  };
+}
+
+export const pagedResponseMetadataSchema =
+  normalizedPagedResponseMetadataSchema;
 
 export type PagedResponseMetadata = z.infer<typeof pagedResponseMetadataSchema>;
-export type AdminPagedResponse<TItemsKey extends string, TItem> =
-  PagedResponseMetadata & Record<TItemsKey, TItem[]>;
+export type AdminPagedResponse<
+  TItemsKey extends string,
+  TItem,
+> = PagedResponseMetadata & Record<TItemsKey, TItem[]>;
 
 function createPagedResponseSchema<
   TItemsKey extends string,
   TItemSchema extends ZodTypeAny,
 >(itemsKey: TItemsKey, itemSchema: TItemSchema) {
   const shape = {
-    ...pagedResponseBaseSchema.shape,
+    ...pagedResponseInputSchema.shape,
     [itemsKey]: z.array(itemSchema),
-  } as typeof pagedResponseBaseSchema.shape & Record<TItemsKey, ZodArray<TItemSchema>>;
+  } as Record<string, ZodTypeAny>;
+  const baseSchema = z.object(shape);
 
-  return z.object(shape);
+  return baseSchema.transform((value) =>
+    normalizePagedResponse(
+      value as z.output<typeof baseSchema> & { curentPage: number },
+    ),
+  );
 }
 
 export const adminUserListItemSchema = z.object({
@@ -202,14 +229,17 @@ export const incomeFiltersSchema = z.object({
 });
 
 export type AdminUserListItem = z.infer<typeof adminUserListItemSchema>;
-export type PagedUsersResponse = z.infer<typeof pagedUsersResponseSchema>;
+export type PagedUsersResponse = AdminPagedResponse<"users", AdminUserListItem>;
 export type Currency = z.infer<typeof currencySchema>;
 export type Timezone = z.infer<typeof timezoneSchema>;
 export type ExpenseListItem = z.infer<typeof expenseListItemSchema>;
-export type PagedExpensesResponse = z.infer<typeof pagedExpensesResponseSchema>;
+export type PagedExpensesResponse = AdminPagedResponse<
+  "items",
+  ExpenseListItem
+>;
 export type ExpenseMonthlySummary = z.infer<typeof expenseMonthlySummarySchema>;
 export type IncomeListItem = z.infer<typeof incomeListItemSchema>;
-export type PagedIncomeResponse = z.infer<typeof pagedIncomeResponseSchema>;
+export type PagedIncomeResponse = AdminPagedResponse<"items", IncomeListItem>;
 export type IncomeMonthlySummary = z.infer<typeof incomeMonthlySummarySchema>;
 export type InvestmentCategory = z.infer<typeof investmentCategorySchema>;
 export type InvestmentAccountListItem = z.infer<

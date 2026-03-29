@@ -87,4 +87,34 @@ describe("query-client", () => {
       dedupeKey: "query-error:The mutation failed.",
     });
   });
+
+  it("skips the global error toast when query or mutation meta suppresses it", () => {
+    const toastErrorSpy = vi.spyOn(toast, "error").mockReturnValue("toast-1");
+    const client = createQueryClient();
+
+    client.getQueryCache().config.onError?.(
+      new Error("Muted query"),
+      {
+        meta: {
+          suppressErrorToast: true,
+        },
+      } as never,
+    );
+
+    client.getMutationCache().config.onError?.(
+      new Error("Muted mutation"),
+      undefined,
+      undefined,
+      {
+        options: {
+          meta: {
+            suppressErrorToast: true,
+          },
+        },
+      } as never,
+      {} as never,
+    );
+
+    expect(toastErrorSpy).not.toHaveBeenCalled();
+  });
 });

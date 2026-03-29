@@ -16,7 +16,9 @@ describe("AppSidebar", () => {
 
     expect(screen.getByText("expensify")).toBeInTheDocument();
     expect(
-      screen.queryByText(/a purpose-built shell for the personal finance experience/i),
+      screen.queryByText(
+        /a purpose-built shell for the personal finance experience/i,
+      ),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /dashboard/i }),
@@ -39,7 +41,9 @@ describe("AppSidebar", () => {
     expect(
       screen.queryByRole("button", { name: /upgrade now/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: /dark mode/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: /dark mode/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("complementary")).toHaveClass(
       "overflow-y-auto",
       "sidebar-scrollbar",
@@ -92,6 +96,12 @@ describe("AppSidebar", () => {
       "href",
       "/admin/catalogs",
     );
+    expect(
+      screen.queryByRole("navigation", { name: "Primary navigation" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /dashboard/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show admin navigation for non-admin users", () => {
@@ -121,5 +131,11 @@ describe("AppSidebar", () => {
     expect(
       screen.queryByRole("link", { name: "Catalogs" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Primary navigation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /dashboard/i }),
+    ).toBeInTheDocument();
   });
 });

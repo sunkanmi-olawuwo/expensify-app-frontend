@@ -11,7 +11,27 @@ import { getToastErrorMessage, toast } from "@/lib/toast";
 
 import type { ReactNode } from "react";
 
-function handleQueryError(error: unknown): void {
+type ErrorToastMeta = {
+  suppressErrorToast?: boolean;
+};
+
+function shouldSuppressErrorToast(target: unknown): boolean {
+  if (!target || typeof target !== "object") {
+    return false;
+  }
+
+  const meta =
+    (target as { meta?: ErrorToastMeta }).meta ??
+    (target as { options?: { meta?: ErrorToastMeta } }).options?.meta;
+
+  return meta?.suppressErrorToast === true;
+}
+
+function handleQueryError(error: unknown, target?: unknown): void {
+  if (shouldSuppressErrorToast(target)) {
+    return;
+  }
+
   if (process.env.NODE_ENV !== "test") {
     console.error(error);
   }
@@ -36,10 +56,11 @@ export function createQueryClient(): QueryClient {
       },
     },
     mutationCache: new MutationCache({
-      onError: handleQueryError,
+      onError: (error, _variables, _context, mutation) =>
+        handleQueryError(error, mutation),
     }),
     queryCache: new QueryCache({
-      onError: handleQueryError,
+      onError: (error, query) => handleQueryError(error, query),
     }),
   });
 }
