@@ -9,6 +9,11 @@ export interface ApiProblemDetails {
   errors?: ApiValidationErrors;
 }
 
+export interface ApiResponse<T> {
+  data: T;
+  response: Response;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   page: number;

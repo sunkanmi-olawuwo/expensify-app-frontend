@@ -11,7 +11,11 @@ import { refreshResponseSchema } from "@/lib/auth/types";
 
 import { ApiError, normalizeApiError } from "./api-error";
 
-import type { ApiRequestOptions, ApiRequestParamValue } from "./types";
+import type {
+  ApiRequestOptions,
+  ApiRequestParamValue,
+  ApiResponse,
+} from "./types";
 
 type HttpMethod = "DELETE" | "GET" | "PATCH" | "POST" | "PUT";
 
@@ -407,6 +411,7 @@ async function executeRequest<T>(
         );
       } catch {
         handleUnauthorizedResponse();
+        throw error;
       }
     } else {
       handleUnauthorizedResponse();
@@ -434,12 +439,87 @@ async function request<T>(
   });
 }
 
+async function executeRequestWithResponse<T>(
+  config: RequestConfig,
+  tokenOverride?: string | null,
+): Promise<{ parsedBody: T; response: Response }> {
+  const { parsedBody, response } = await sendRequest(config, tokenOverride);
+
+  if (response.ok) {
+    return {
+      parsedBody: parsedBody as T,
+      response,
+    };
+  }
+
+  let error = normalizeApiError(parsedBody, {
+    status: response.status,
+    statusText: response.statusText,
+  });
+
+  if (response.status === 429) {
+    error = createRateLimitError(error, response.headers.get("Retry-After"));
+  }
+
+  if (error.isUnauthorized() && config.options.auth !== "none") {
+    if (config.options.retryOnUnauthorized !== false) {
+      try {
+        const refreshedToken = await refreshTokens();
+
+        return await executeRequestWithResponse<T>(
+          {
+            ...config,
+            options: {
+              ...config.options,
+              retryOnUnauthorized: false,
+            },
+          },
+          refreshedToken,
+        );
+      } catch {
+        handleUnauthorizedResponse();
+        throw error;
+      }
+    } else {
+      handleUnauthorizedResponse();
+    }
+  }
+
+  throw error;
+}
+
+async function requestWithResponse<T>(
+  method: HttpMethod,
+  path: string,
+  body?: RequestBody,
+  options: ApiRequestOptions = {},
+): Promise<ApiResponse<T>> {
+  const { parsedBody, response } = await executeRequestWithResponse<T>({
+    body,
+    method,
+    options: {
+      auth: "auto",
+      retryOnUnauthorized: true,
+      ...options,
+    },
+    path,
+  });
+
+  return {
+    data: parsedBody,
+    response,
+  };
+}
+
 export const httpClient = {
   delete<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     return request<T>("DELETE", path, undefined, options);
   },
   get<T>(path: string, options?: ApiRequestOptions): Promise<T> {
     return request<T>("GET", path, undefined, options);
+  },
+  getResponse<T>(path: string, options?: ApiRequestOptions): Promise<ApiResponse<T>> {
+    return requestWithResponse<T>("GET", path, undefined, options);
   },
   patch<T>(
     path: string,

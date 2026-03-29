@@ -91,14 +91,6 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
         </div>
       </div>
 
-      <nav aria-label="Primary navigation" className="space-y-2 pr-2">
-        <NavItems
-          items={primaryNavItems}
-          onNavigate={onNavigate}
-          pathname={pathname}
-        />
-      </nav>
-
       {isAdmin ? (
         <div className="space-y-3 pr-2">
           <div className="text-muted-foreground flex items-center gap-2 px-4">
@@ -116,7 +108,15 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
             />
           </nav>
         </div>
-      ) : null}
+      ) : (
+        <nav aria-label="Primary navigation" className="space-y-2 pr-2">
+          <NavItems
+            items={primaryNavItems}
+            onNavigate={onNavigate}
+            pathname={pathname}
+          />
+        </nav>
+      )}
 
       <div className="mt-auto space-y-4 pr-2">
         <ThemeToggle switchStyle />

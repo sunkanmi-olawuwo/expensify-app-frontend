@@ -92,6 +92,12 @@ describe("AppSidebar", () => {
       "href",
       "/admin/catalogs",
     );
+    expect(
+      screen.queryByRole("navigation", { name: "Primary navigation" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /dashboard/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show admin navigation for non-admin users", () => {
@@ -121,5 +127,11 @@ describe("AppSidebar", () => {
     expect(
       screen.queryByRole("link", { name: "Catalogs" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Primary navigation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /dashboard/i }),
+    ).toBeInTheDocument();
   });
 });
