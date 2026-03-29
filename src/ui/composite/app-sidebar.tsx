@@ -3,8 +3,15 @@
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useId } from "react";
 
-import { primaryNavItems } from "@/lib/app-shell";
+import {
+  AdminSectionIcon,
+  adminNavItems,
+  isRouteActive,
+  primaryNavItems,
+} from "@/lib/app-shell";
+import type { NavItem } from "@/lib/app-shell";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -15,9 +22,56 @@ type AppSidebarProps = {
   onNavigate?: () => void;
 };
 
+function NavItems({
+  items,
+  onNavigate,
+  pathname,
+}: {
+  items: NavItem[];
+  onNavigate?: () => void;
+  pathname: string | null;
+}) {
+  return (
+    <>
+      {items.map((item) => {
+        const isActive = isRouteActive(pathname, item.href);
+        const Icon = item.icon;
+
+        return (
+          <Link
+            key={item.href}
+            aria-current={isActive ? "page" : undefined}
+            href={item.href}
+            onClick={onNavigate}
+            className={cn(
+              "text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex items-center gap-3 rounded-full px-4 py-3 transition-colors",
+              isActive &&
+                "text-primary bg-[color:var(--sidebar-accent)] shadow-[inset_0_0_0_1px_var(--ghost-border)]",
+            )}
+          >
+            {Icon ? (
+              <span
+                className={cn(
+                  "bg-surface-container-low text-muted-foreground flex size-10 items-center justify-center rounded-full",
+                  isActive && "bg-surface-bright text-primary",
+                )}
+              >
+                <Icon className="size-5" />
+              </span>
+            ) : null}
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
 export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const isAdmin = user?.role === "Admin";
+  const adminNavLabelId = useId();
 
   return (
     <aside
@@ -38,34 +92,31 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
       </div>
 
       <nav aria-label="Primary navigation" className="space-y-2 pr-2">
-        {primaryNavItems.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={cn(
-                "text-body-md text-muted-foreground hover:bg-surface-container-low hover:text-foreground flex items-center gap-3 rounded-full px-4 py-3 transition-colors",
-                isActive &&
-                  "text-primary bg-[color:var(--sidebar-accent)] shadow-[inset_0_0_0_1px_var(--ghost-border)]",
-              )}
-            >
-              <span
-                className={cn(
-                  "bg-surface-container-low text-muted-foreground flex size-10 items-center justify-center rounded-full",
-                  isActive && "bg-surface-bright text-primary",
-                )}
-              >
-                <Icon className="size-5" />
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        <NavItems
+          items={primaryNavItems}
+          onNavigate={onNavigate}
+          pathname={pathname}
+        />
       </nav>
+
+      {isAdmin ? (
+        <div className="space-y-3 pr-2">
+          <div className="text-muted-foreground flex items-center gap-2 px-4">
+            <AdminSectionIcon aria-hidden="true" className="size-4" />
+            <p className="text-label-sm" id={adminNavLabelId}>
+              Administration
+            </p>
+          </div>
+
+          <nav aria-labelledby={adminNavLabelId} className="space-y-2">
+            <NavItems
+              items={adminNavItems}
+              onNavigate={onNavigate}
+              pathname={pathname}
+            />
+          </nav>
+        </div>
+      ) : null}
 
       <div className="mt-auto space-y-4 pr-2">
         <ThemeToggle switchStyle />
@@ -76,7 +127,7 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
             onClick={() => void logout()}
             type="button"
           >
-            <LogOut className="size-4" />
+            <LogOut aria-hidden="true" className="size-4" />
             Logout
           </button>
         </div>
