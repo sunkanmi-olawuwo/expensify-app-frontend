@@ -14,7 +14,8 @@
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(git branch:*)",
-      "Bash(pkill -f \"next dev\")"
+      "Bash(pkill -f \"next dev\")",
+      "Bash(git commit:*)"
     ]
   }
 }

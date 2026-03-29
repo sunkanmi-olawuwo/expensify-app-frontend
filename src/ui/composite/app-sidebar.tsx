@@ -118,6 +118,25 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
         </nav>
       )}
 
+      {isAdmin ? (
+        <div className="space-y-3 pr-2">
+          <div className="text-muted-foreground flex items-center gap-2 px-4">
+            <AdminSectionIcon aria-hidden="true" className="size-4" />
+            <p className="text-label-sm" id={adminNavLabelId}>
+              Administration
+            </p>
+          </div>
+
+          <nav aria-labelledby={adminNavLabelId} className="space-y-2">
+            <NavItems
+              items={adminNavItems}
+              onNavigate={onNavigate}
+              pathname={pathname}
+            />
+          </nav>
+        </div>
+      ) : null}
+
       <div className="mt-auto space-y-4 pr-2">
         <ThemeToggle switchStyle />
 

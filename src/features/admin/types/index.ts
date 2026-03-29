@@ -41,11 +41,14 @@ function normalizePagedResponse(
   };
 }
 
-export const pagedResponseMetadataSchema = normalizedPagedResponseMetadataSchema;
+export const pagedResponseMetadataSchema =
+  normalizedPagedResponseMetadataSchema;
 
 export type PagedResponseMetadata = z.infer<typeof pagedResponseMetadataSchema>;
-export type AdminPagedResponse<TItemsKey extends string, TItem> =
-  PagedResponseMetadata & Record<TItemsKey, TItem[]>;
+export type AdminPagedResponse<
+  TItemsKey extends string,
+  TItem,
+> = PagedResponseMetadata & Record<TItemsKey, TItem[]>;
 
 function createPagedResponseSchema<
   TItemsKey extends string,
@@ -230,7 +233,10 @@ export type PagedUsersResponse = AdminPagedResponse<"users", AdminUserListItem>;
 export type Currency = z.infer<typeof currencySchema>;
 export type Timezone = z.infer<typeof timezoneSchema>;
 export type ExpenseListItem = z.infer<typeof expenseListItemSchema>;
-export type PagedExpensesResponse = AdminPagedResponse<"items", ExpenseListItem>;
+export type PagedExpensesResponse = AdminPagedResponse<
+  "items",
+  ExpenseListItem
+>;
 export type ExpenseMonthlySummary = z.infer<typeof expenseMonthlySummarySchema>;
 export type IncomeListItem = z.infer<typeof incomeListItemSchema>;
 export type PagedIncomeResponse = AdminPagedResponse<"items", IncomeListItem>;

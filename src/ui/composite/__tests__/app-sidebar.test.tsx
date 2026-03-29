@@ -16,7 +16,9 @@ describe("AppSidebar", () => {
 
     expect(screen.getByText("expensify")).toBeInTheDocument();
     expect(
-      screen.queryByText(/a purpose-built shell for the personal finance experience/i),
+      screen.queryByText(
+        /a purpose-built shell for the personal finance experience/i,
+      ),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /dashboard/i }),
@@ -39,7 +41,9 @@ describe("AppSidebar", () => {
     expect(
       screen.queryByRole("button", { name: /upgrade now/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: /dark mode/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: /dark mode/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("complementary")).toHaveClass(
       "overflow-y-auto",
       "sidebar-scrollbar",
